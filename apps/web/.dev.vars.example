@@ -1,0 +1,10 @@
+# Local-only environment values for `wrangler pages dev`.
+# Copy to `.dev.vars` (gitignored) and fill in. Never commit real secrets.
+#
+# Nothing here is required yet — the site is fully static. These are the
+# values we expect to need once Stream / analytics / ads come online.
+
+# PUBLIC_ENV=development
+# CLOUDFLARE_STREAM_CUSTOMER_CODE=
+# CLOUDFLARE_STREAM_SIGNING_KEY=
+# PUBLIC_ADSENSE_CLIENT_ID=

@@ -1,0 +1,142 @@
+@import 'tailwindcss';
+@import './tokens.css';
+
+/**
+ * Theme switching.
+ *
+ * The inline script in BaseLayout always writes a concrete `data-theme`
+ * ("light" or "dark") onto <html> before first paint, resolving the system
+ * preference when the user has not chosen. That gives us a single source of
+ * truth, so `dark:` keys off the attribute rather than the media query.
+ */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/**
+ * Expose the design tokens as Tailwind utilities.
+ * `@theme inline` keeps them as var() references, so they stay live when the
+ * theme attribute flips — no rebuild, no duplicated palettes.
+ *
+ *   --color-bg      -> bg-bg / text-bg / border-bg
+ *   --color-brand   -> bg-brand / text-brand
+ *   --font-sans     -> font-sans
+ */
+@theme inline {
+  --color-bg: var(--qa-bg);
+  --color-bg-subtle: var(--qa-bg-subtle);
+  --color-surface: var(--qa-surface);
+  --color-surface-raised: var(--qa-surface-raised);
+
+  --color-fg: var(--qa-fg);
+  --color-fg-muted: var(--qa-fg-muted);
+  --color-fg-subtle: var(--qa-fg-subtle);
+
+  --color-border: var(--qa-border);
+  --color-border-strong: var(--qa-border-strong);
+
+  --color-brand: var(--qa-brand);
+  --color-brand-hover: var(--qa-brand-hover);
+  --color-brand-fg: var(--qa-brand-fg);
+  --color-accent: var(--qa-accent);
+  --color-accent-fg: var(--qa-accent-fg);
+  --color-focus: var(--qa-focus);
+
+  --font-sans: var(--qa-font-sans);
+  --font-display: var(--qa-font-display);
+  --font-mono: var(--qa-font-mono);
+
+  --radius-sm: var(--qa-radius-sm);
+  --radius-md: var(--qa-radius-md);
+  --radius-lg: var(--qa-radius-lg);
+
+  --shadow-sm: var(--qa-shadow-sm);
+  --shadow-md: var(--qa-shadow-md);
+  --shadow-lg: var(--qa-shadow-lg);
+
+  --container-site: var(--qa-container);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--qa-bg);
+    color: var(--qa-fg);
+    font-family: var(--qa-font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Visible, consistent focus ring for keyboard users on every interactive element. */
+  :focus-visible {
+    outline: 2px solid var(--qa-focus);
+    outline-offset: 2px;
+    border-radius: var(--qa-radius-sm);
+  }
+
+  ::selection {
+    background-color: var(--qa-brand);
+    color: var(--qa-brand-fg);
+  }
+
+  /* Respect users who ask for less motion. */
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Shared page gutter + max width. Used by every section. */
+  .qa-container {
+    width: 100%;
+    max-width: var(--qa-container);
+    margin-inline: auto;
+    padding-inline: 1.25rem;
+  }
+
+  @media (min-width: 768px) {
+    .qa-container {
+      padding-inline: 2rem;
+    }
+  }
+
+  /* Screen-reader-only, but focusable (used by the skip link). */
+  .qa-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .qa-sr-only:focus-visible {
+    position: fixed;
+    top: 0.75rem;
+    left: 0.75rem;
+    z-index: 100;
+    width: auto;
+    height: auto;
+    margin: 0;
+    padding: 0.75rem 1rem;
+    clip-path: none;
+    background-color: var(--qa-brand);
+    color: var(--qa-brand-fg);
+    border-radius: var(--qa-radius-md);
+  }
+}

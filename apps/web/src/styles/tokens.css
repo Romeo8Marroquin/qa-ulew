@@ -1,0 +1,93 @@
+/**
+ * DESIGN TOKENS — the only file that should change when the real brand lands.
+ *
+ * Every colour, font and radius used anywhere in the site resolves back to a
+ * variable defined here. When the designs, logo, palette and fonts arrive,
+ * replacing the values below re-skins the entire site; no component changes.
+ *
+ * All current values are NEUTRAL PLACEHOLDERS chosen only to be legible and
+ * accessible. They are not a brand proposal.
+ *
+ * Light is the default. `[data-theme='dark']` is set on <html> by the inline
+ * script in BaseLayout before first paint — it resolves the user's saved
+ * preference, or the system's `prefers-color-scheme` when there is none.
+ */
+
+:root {
+  /* --- Typography ---------------------------------------------------- */
+  /* TODO: swap for the brand typefaces once chosen (see docs/design.md). */
+  --qa-font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Noto Sans', sans-serif;
+  --qa-font-display: var(--qa-font-sans);
+  --qa-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* --- Radii & elevation --------------------------------------------- */
+  --qa-radius-sm: 0.375rem;
+  --qa-radius-md: 0.625rem;
+  --qa-radius-lg: 1rem;
+  --qa-radius-full: 9999px;
+
+  --qa-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --qa-shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.1);
+  --qa-shadow-lg: 0 12px 32px -8px rgb(0 0 0 / 0.18);
+
+  /* --- Layout --------------------------------------------------------- */
+  --qa-container: 72rem;
+  --qa-header-height: 4rem;
+
+  /* --- Motion --------------------------------------------------------- */
+  --qa-transition: 180ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* --- Colour: LIGHT (default) ---------------------------------------- */
+  /* Semantic names only. Never reference a raw hex outside this file. */
+  --qa-bg: #ffffff;
+  --qa-bg-subtle: #f6f7f8;
+  --qa-surface: #ffffff;
+  --qa-surface-raised: #ffffff;
+
+  --qa-fg: #14181c;
+  --qa-fg-muted: #5b666f;
+  --qa-fg-subtle: #8a939b;
+
+  --qa-border: #e3e6e9;
+  --qa-border-strong: #c9cfd4;
+
+  /* Placeholder brand colour. TODO: replace with the real palette. */
+  --qa-brand: #1f7a53;
+  --qa-brand-hover: #196745;
+  --qa-brand-fg: #ffffff;
+  --qa-accent: #c2701c;
+  --qa-accent-fg: #ffffff;
+
+  --qa-focus: #1f7a53;
+  --qa-overlay: rgb(0 0 0 / 0.55);
+
+  color-scheme: light;
+}
+
+/* --- Colour: DARK ----------------------------------------------------- */
+[data-theme='dark'] {
+  --qa-bg: #0d1116;
+  --qa-bg-subtle: #141a21;
+  --qa-surface: #141a21;
+  --qa-surface-raised: #1b232c;
+
+  --qa-fg: #e9edf1;
+  --qa-fg-muted: #a2adb8;
+  --qa-fg-subtle: #6f7d89;
+
+  --qa-border: #262f39;
+  --qa-border-strong: #3a4552;
+
+  --qa-brand: #4fbc8b;
+  --qa-brand-hover: #6bcda0;
+  --qa-brand-fg: #08120d;
+  --qa-accent: #e0954a;
+  --qa-accent-fg: #1a1206;
+
+  --qa-focus: #4fbc8b;
+  --qa-overlay: rgb(0 0 0 / 0.7);
+
+  color-scheme: dark;
+}

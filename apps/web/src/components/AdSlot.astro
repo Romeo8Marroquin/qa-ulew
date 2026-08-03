@@ -1,0 +1,72 @@
+---
+/**
+ * Advertising placeholder.
+ *
+ * Deliberately inert: while `ADS.provider === 'none'` this renders NOTHING and
+ * loads no third-party script. The component exists so ad placements are
+ * decided and reserved now, and turning them on later is a config change
+ * rather than a layout rewrite.
+ *
+ * The wrapper reserves its height up front, so enabling ads will not cause
+ * layout shift (CLS) — the thing that most often tanks Core Web Vitals when
+ * ads are bolted on after the fact.
+ *
+ * See docs/ads.md before enabling anything.
+ */
+import { ADS, adsEnabled } from '~/config/site';
+
+interface Props {
+  /** Where this slot sits, for reporting and per-slot ad units. */
+  placement: 'header' | 'in-feed' | 'sidebar' | 'footer';
+  /** Reserved height in px (mobile, desktop). Prevents layout shift. */
+  height?: [number, number];
+  class?: string;
+}
+
+const { placement, height = [250, 90], class: className = '' } = Astro.props;
+const [mobileHeight, desktopHeight] = height;
+
+const enabled = adsEnabled();
+---
+
+{
+  enabled && (
+    <aside
+      class={`qa-ad-slot ${className}`}
+      data-ad-placement={placement}
+      aria-label="Publicidad"
+      style={`--qa-ad-h-mobile:${mobileHeight}px;--qa-ad-h-desktop:${desktopHeight}px;`}
+    >
+      {ADS.provider === 'adsense' && ADS.adsenseClientId && (
+        <ins
+          class="adsbygoogle block w-full"
+          data-ad-client={ADS.adsenseClientId}
+          data-ad-slot={placement}
+          data-ad-format="auto"
+          data-full-width-responsive="true"
+        />
+      )}
+
+      {ADS.provider === 'custom' && (
+        <div class="flex h-full w-full items-center justify-center rounded-md border border-dashed border-border text-sm text-fg-subtle">
+          {/* TODO: render the house/direct-sold creative for `placement`. */}
+        </div>
+      )}
+    </aside>
+  )
+}
+
+<style>
+  .qa-ad-slot {
+    display: block;
+    width: 100%;
+    min-height: var(--qa-ad-h-mobile);
+    margin-block: 1.5rem;
+  }
+
+  @media (min-width: 768px) {
+    .qa-ad-slot {
+      min-height: var(--qa-ad-h-desktop);
+    }
+  }
+</style>

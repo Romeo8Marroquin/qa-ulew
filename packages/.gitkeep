@@ -1,0 +1,9 @@
+# Shared workspace packages live here.
+#
+# Nothing yet. Expected first tenants:
+#   packages/ui        — components shared between the landing and future apps
+#   packages/tsconfig  — shared TypeScript base config
+#   packages/config    — shared ESLint/Prettier config
+#
+# Adding one: create the folder with a package.json named `@qa-ulew/<name>`.
+# pnpm picks it up automatically from pnpm-workspace.yaml.

@@ -1,0 +1,45 @@
+---
+/**
+ * Language switcher.
+ *
+ * Renders nothing while the site has a single locale — no dead UI today, and
+ * it appears automatically the moment a second locale is added to
+ * `i18n/config.ts`. No code change required.
+ */
+import { Icon } from 'astro-icon/components';
+import { getRelativeLocaleUrl } from 'astro:i18n';
+
+import { DEFAULT_LOCALE, LOCALES, LOCALE_META, isLocale, type Locale } from '~/i18n/config';
+import { useTranslations } from '~/i18n/utils';
+
+const active: Locale = isLocale(Astro.currentLocale) ? Astro.currentLocale : DEFAULT_LOCALE;
+const t = useTranslations(active);
+
+// Strip the locale prefix so we switch language on the SAME page.
+const segments = Astro.url.pathname.split('/').filter(Boolean);
+const rest = isLocale(segments[0]) ? segments.slice(1) : segments;
+const path = `/${rest.join('/')}`;
+---
+
+{
+  LOCALES.length > 1 && (
+    <nav class="flex items-center gap-1" aria-label={t('locale.switch')}>
+      <Icon name="lucide:languages" class="mr-1 h-4 w-4 text-fg-subtle" aria-hidden="true" />
+      {LOCALES.map((locale) => (
+        <a
+          href={getRelativeLocaleUrl(locale, path)}
+          hreflang={LOCALE_META[locale].htmlLang}
+          aria-current={locale === active ? 'true' : undefined}
+          class:list={[
+            'rounded-md px-2 py-1 text-sm font-medium transition-colors',
+            locale === active
+              ? 'bg-bg-subtle text-fg'
+              : 'text-fg-muted hover:bg-bg-subtle hover:text-fg',
+          ]}
+        >
+          {LOCALE_META[locale].label}
+        </a>
+      ))}
+    </nav>
+  )
+}

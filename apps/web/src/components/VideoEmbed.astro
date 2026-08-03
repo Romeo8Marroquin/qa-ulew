@@ -1,0 +1,156 @@
+---
+/**
+ * Privacy-friendly, performance-friendly video embed ("facade" pattern).
+ *
+ * Nothing from YouTube or Facebook is loaded on page load — we render a poster
+ * image and a play button. The real iframe is injected only after the user
+ * clicks. That keeps the landing fast (a stock YouTube embed costs ~1 MB of
+ * third-party JS per video) and avoids setting third-party cookies before
+ * consent.
+ *
+ * `cloudflare-stream` is supported here already, so migrating a video off
+ * YouTube later is a one-line data change in `config/site.ts`.
+ */
+import { Icon } from 'astro-icon/components';
+
+import { STREAM, type VideoProvider } from '~/config/site';
+import { DEFAULT_LOCALE, isLocale } from '~/i18n/config';
+import { useTranslations } from '~/i18n/utils';
+
+interface Props {
+  provider: VideoProvider;
+  id: string;
+  title: string;
+  poster?: string;
+  /** Set on the first video of the page so its poster is not lazy-loaded. */
+  eager?: boolean;
+}
+
+const { provider, id, title, poster, eager = false } = Astro.props;
+
+const t = useTranslations(isLocale(Astro.currentLocale) ? Astro.currentLocale : DEFAULT_LOCALE);
+
+const PROVIDER_LABEL: Record<VideoProvider, string> = {
+  youtube: 'YouTube',
+  facebook: 'Facebook',
+  'cloudflare-stream': 'Cloudflare Stream',
+};
+
+/** The URL loaded into the iframe on click. `null` = cannot render. */
+function embedUrl(): string | null {
+  switch (provider) {
+    case 'youtube':
+      // -nocookie avoids third-party tracking cookies until playback starts.
+      return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?autoplay=1&rel=0&modestbranding=1`;
+    case 'facebook':
+      return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(id)}&show_text=false&autoplay=true`;
+    case 'cloudflare-stream':
+      return STREAM.customerCode
+        ? `https://customer-${STREAM.customerCode}.cloudflarestream.com/${encodeURIComponent(id)}/iframe?autoplay=true`
+        : null;
+  }
+}
+
+/** Public "watch on the original platform" link. */
+function canonicalUrl(): string | null {
+  switch (provider) {
+    case 'youtube':
+      return `https://www.youtube.com/watch?v=${encodeURIComponent(id)}`;
+    case 'facebook':
+      return id;
+    case 'cloudflare-stream':
+      return null;
+  }
+}
+
+const src = embedUrl();
+const watchUrl = canonicalUrl();
+
+// YouTube exposes a predictable thumbnail; hqdefault always exists, unlike
+// maxresdefault which 404s on older or low-resolution uploads.
+const posterSrc =
+  poster ?? (provider === 'youtube' ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : undefined);
+
+const providerLabel = PROVIDER_LABEL[provider];
+---
+
+{
+  src && (
+    <figure class="group m-0">
+      <div
+        class="relative aspect-video w-full overflow-hidden rounded-lg border border-border bg-bg-subtle"
+        data-video-facade
+        data-src={src}
+        data-title={title}
+      >
+        {posterSrc ? (
+          <img
+            src={posterSrc}
+            alt=""
+            width="1280"
+            height="720"
+            loading={eager ? 'eager' : 'lazy'}
+            decoding="async"
+            class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+          />
+        ) : (
+          <div class="absolute inset-0 bg-gradient-to-br from-bg-subtle to-surface-raised" />
+        )}
+
+        <button
+          type="button"
+          class="absolute inset-0 flex cursor-pointer items-center justify-center bg-black/25 transition-colors hover:bg-black/40 focus-visible:bg-black/40"
+          aria-label={`${t('videos.play')}: ${title}`}
+        >
+          <span class="flex h-16 w-16 items-center justify-center rounded-full bg-brand text-brand-fg shadow-lg transition-transform group-hover:scale-110">
+            <Icon name="lucide:play" class="ml-1 h-7 w-7" aria-hidden="true" />
+          </span>
+        </button>
+      </div>
+
+      <figcaption class="mt-3 flex items-start justify-between gap-4">
+        <span class="font-medium text-fg">{title}</span>
+        {watchUrl && (
+          <a
+            href={watchUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex shrink-0 items-center gap-1 text-sm whitespace-nowrap text-fg-subtle transition-colors hover:text-brand"
+          >
+            {t('videos.watchOn', { provider: providerLabel })}
+            <Icon name="lucide:external-link" class="h-3.5 w-3.5" aria-hidden="true" />
+          </a>
+        )}
+      </figcaption>
+    </figure>
+  )
+}
+
+<script>
+  // One delegated listener for every facade on the page.
+  document.querySelectorAll<HTMLElement>('[data-video-facade]').forEach((facade) => {
+    const button = facade.querySelector('button');
+    if (!button) return;
+
+    button.addEventListener(
+      'click',
+      () => {
+        const src = facade.dataset.src;
+        if (!src) return;
+
+        const iframe = document.createElement('iframe');
+        iframe.src = src;
+        iframe.title = facade.dataset.title ?? '';
+        iframe.loading = 'lazy';
+        iframe.allow =
+          'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+        iframe.allowFullscreen = true;
+        iframe.className = 'absolute inset-0 h-full w-full border-0';
+
+        facade.replaceChildren(iframe);
+        iframe.focus();
+      },
+      { once: true },
+    );
+  });
+</script>

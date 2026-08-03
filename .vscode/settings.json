@@ -1,0 +1,27 @@
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "[astro]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+
+  // Tailwind v4 reads its config from CSS — point IntelliSense at the entry file.
+  "tailwindCSS.experimental.configFile": "apps/web/src/styles/global.css",
+  "tailwindCSS.includeLanguages": {
+    "astro": "html"
+  },
+
+  // `@theme`, `@custom-variant` and `@apply` are Tailwind at-rules, not errors.
+  "css.lint.unknownAtRules": "ignore",
+
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/.astro": true,
+    "**/pnpm-lock.yaml": true
+  }
+}

@@ -1,0 +1,46 @@
+---
+/**
+ * Renders only the platforms that have a URL configured in `config/site.ts`.
+ * Nothing at all is rendered while none are set, so the site never ships a
+ * dead link.
+ */
+import { Icon } from 'astro-icon/components';
+
+import { activeSocialLinks } from '~/config/site';
+import { DEFAULT_LOCALE, isLocale } from '~/i18n/config';
+import { useTranslations } from '~/i18n/utils';
+
+interface Props {
+  size?: 'sm' | 'md';
+  class?: string;
+}
+
+const { size = 'md', class: className = '' } = Astro.props;
+
+const t = useTranslations(isLocale(Astro.currentLocale) ? Astro.currentLocale : DEFAULT_LOCALE);
+const links = activeSocialLinks();
+
+const box = size === 'sm' ? 'h-9 w-9' : 'h-11 w-11';
+const glyph = size === 'sm' ? 'h-4 w-4' : 'h-5 w-5';
+---
+
+{
+  links.length > 0 && (
+    <ul class={`flex flex-wrap items-center gap-2 ${className}`}>
+      {links.map((link) => (
+        <li>
+          <a
+            href={link.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={t('social.followOn', { platform: link.label })}
+            title={link.label}
+            class={`inline-flex border-border text-fg-muted hover:border-brand hover:text-brand ${box} items-center justify-center rounded-full border transition-colors`}
+          >
+            <Icon name={`simple-icons:${link.id}`} class={glyph} aria-hidden="true" />
+          </a>
+        </li>
+      ))}
+    </ul>
+  )
+}

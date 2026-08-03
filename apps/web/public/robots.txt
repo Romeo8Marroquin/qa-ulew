@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://qa-ulew.tv/sitemap-index.xml

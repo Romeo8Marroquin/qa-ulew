@@ -1,0 +1,64 @@
+---
+/**
+ * Light/dark toggle.
+ *
+ * Default behaviour is "follow the system". Once the user clicks, their choice
+ * is stored in localStorage and wins from then on. The no-flash resolution
+ * happens in the inline script in BaseLayout, before first paint.
+ */
+import { Icon } from 'astro-icon/components';
+
+import { DEFAULT_LOCALE, isLocale } from '~/i18n/config';
+import { useTranslations } from '~/i18n/utils';
+
+const t = useTranslations(isLocale(Astro.currentLocale) ? Astro.currentLocale : DEFAULT_LOCALE);
+---
+
+<button
+  type="button"
+  data-theme-toggle
+  class="inline-flex h-10 w-10 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-bg-subtle hover:text-fg"
+  aria-label={t('theme.toggle')}
+  title={t('theme.toggle')}
+>
+  <Icon name="lucide:sun" class="hidden h-5 w-5 dark:block" aria-hidden="true" />
+  <Icon name="lucide:moon" class="block h-5 w-5 dark:hidden" aria-hidden="true" />
+</button>
+
+<script>
+  const STORAGE_KEY = 'qa-theme';
+
+  type Theme = 'light' | 'dark';
+
+  const apply = (theme: Theme) => {
+    document.documentElement.dataset.theme = theme;
+  };
+
+  const current = (): Theme =>
+    document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+
+  document.querySelectorAll<HTMLButtonElement>('[data-theme-toggle]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const next: Theme = current() === 'dark' ? 'light' : 'dark';
+      apply(next);
+      try {
+        localStorage.setItem(STORAGE_KEY, next);
+      } catch {
+        // Private mode / storage disabled — the toggle still works for this page view.
+      }
+    });
+  });
+
+  // Keep following the OS while the user has not made an explicit choice.
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (event) => {
+    let stored: string | null = null;
+    try {
+      stored = localStorage.getItem(STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+    if (stored !== 'light' && stored !== 'dark') {
+      apply(event.matches ? 'dark' : 'light');
+    }
+  });
+</script>

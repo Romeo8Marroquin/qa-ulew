@@ -1,0 +1,30 @@
+{
+  "name": "qa-ulew",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Monorepo for Qa Ulew (qa-ulew.tv) — landing page and future Cloudflare services.",
+  "license": "MIT",
+  "author": "Romeo Ernesto Marroquín Sánchez",
+  "packageManager": "pnpm@11.20.0",
+  "engines": {
+    "node": ">=24.19.0 <25",
+    "pnpm": ">=11.20.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @qa-ulew/web dev",
+    "build": "pnpm -r --stream build",
+    "preview": "pnpm --filter @qa-ulew/web preview",
+    "check": "pnpm -r --stream check",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "verify": "pnpm format:check && pnpm check && pnpm build",
+    "clean": "pnpm -r --stream exec rimraf dist .astro && rimraf node_modules"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.6",
+    "prettier-plugin-astro": "^0.14.1",
+    "prettier-plugin-tailwindcss": "^0.8.1",
+    "rimraf": "^6.0.1"
+  }
+}

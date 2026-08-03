@@ -1,0 +1,87 @@
+---
+/**
+ * Everything that belongs in <head>: metadata, Open Graph, canonical URL,
+ * hreflang alternates and the (optional) analytics tag.
+ */
+import { ANALYTICS, SITE } from '~/config/site';
+import { DEFAULT_LOCALE, LOCALE_META, isLocale, type Locale } from '~/i18n/config';
+import { alternateLocales, useTranslations } from '~/i18n/utils';
+
+interface Props {
+  /** Page title, already translated. Falls back to the site name. */
+  title?: string;
+  /** Meta description, already translated. */
+  description?: string;
+  /** Social share image, absolute or root-relative. */
+  image?: string;
+  noindex?: boolean;
+}
+
+const { title, description, image, noindex = false } = Astro.props;
+
+// Branch/preview deploys must never be indexed — otherwise the *.pages.dev URL
+// competes with qa-ulew.tv for the same content. Set PUBLIC_ENV=preview on the
+// Preview environment in the Cloudflare Pages dashboard.
+const isPreview = import.meta.env.PUBLIC_ENV === 'preview';
+const blockIndexing = noindex || isPreview;
+
+const locale: Locale = isLocale(Astro.currentLocale) ? Astro.currentLocale : DEFAULT_LOCALE;
+const t = useTranslations(locale);
+const meta = LOCALE_META[locale];
+
+const pageTitle = title ? `${title} · ${SITE.name}` : `${SITE.name} — ${t('site.tagline')}`;
+const pageDescription = description ?? t('site.description');
+
+const canonical = new URL(Astro.url.pathname, Astro.site ?? SITE.url);
+const socialImage = new URL(image ?? SITE.ogImage, Astro.site ?? SITE.url);
+const alternates = alternateLocales(Astro.url.pathname, Astro.site?.href ?? SITE.url);
+---
+
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="generator" content={Astro.generator} />
+
+<title>{pageTitle}</title>
+<meta name="description" content={pageDescription} />
+<link rel="canonical" href={canonical.href} />
+
+{blockIndexing && <meta name="robots" content="noindex, nofollow" />}
+
+{/* Emitted only once a second locale exists. */}
+{alternates.map((alt) => <link rel="alternate" hreflang={alt.hrefLang} href={alt.href} />)}
+
+{/* --- Open Graph --- */}
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content={SITE.name} />
+<meta property="og:title" content={pageTitle} />
+<meta property="og:description" content={pageDescription} />
+<meta property="og:url" content={canonical.href} />
+<meta property="og:image" content={socialImage.href} />
+<meta property="og:locale" content={meta.ogLocale} />
+
+{/* --- Twitter/X card --- */}
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={pageTitle} />
+<meta name="twitter:description" content={pageDescription} />
+<meta name="twitter:image" content={socialImage.href} />
+{SITE.twitterHandle && <meta name="twitter:site" content={SITE.twitterHandle} />}
+
+{/* --- Icons. TODO: replace the placeholder favicon with the real logo. --- */}
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="sitemap" href="/sitemap-index.xml" />
+
+{/* Warm up the video hosts only when the user is likely to hit them. */}
+<link rel="preconnect" href="https://www.youtube-nocookie.com" crossorigin />
+<link rel="dns-prefetch" href="https://i.ytimg.com" />
+
+{/* Privacy-friendly, cookie-free. No script emitted until a token is set. */}
+{
+  ANALYTICS.cloudflareToken && (
+    <script
+      is:inline
+      defer
+      src="https://static.cloudflareinsights.com/beacon.min.js"
+      data-cf-beacon={`{"token": "${ANALYTICS.cloudflareToken}"}`}
+    />
+  )
+}

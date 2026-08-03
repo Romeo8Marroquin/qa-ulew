@@ -1,0 +1,23 @@
+# pnpm workspace definition.
+#
+#   apps/*      deployable units  (apps/web = Astro landing; later: apps/api, apps/worker-*)
+#   packages/*  shared libraries  (later: packages/ui, packages/tsconfig, packages/i18n)
+#
+# Each app/package owns its own package.json and dependencies. The root
+# package.json holds ONLY workspace-wide tooling and orchestration scripts.
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# pnpm blocks dependency install scripts by default (supply-chain protection).
+# Only these are explicitly trusted to run theirs:
+#   esbuild  - fetches/links its native binary (required by Vite/Astro)
+#   workerd  - the Cloudflare Workers runtime binary used by wrangler
+allowBuilds:
+  esbuild: true
+  workerd: true
+
+# pnpm 11 quarantines very fresh releases by default. Anything listed here was
+# reviewed and allowed through that gate.
+minimumReleaseAgeExclude:
+  - "@iconify-json/simple-icons@1.2.93"

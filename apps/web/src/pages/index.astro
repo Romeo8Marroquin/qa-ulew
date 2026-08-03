@@ -1,0 +1,120 @@
+---
+/**
+ * Landing page — STRUCTURE ONLY.
+ *
+ * The layout, spacing and copy here are a working placeholder so the site is
+ * deployable today. Once the real designs, logo, palette and fonts arrive,
+ * the visual change happens in `styles/tokens.css`, and the section content
+ * in `config/site.ts` + `i18n/locales/es.ts`.
+ */
+import { Icon } from 'astro-icon/components';
+
+import AdSlot from '~/components/AdSlot.astro';
+import Section from '~/components/Section.astro';
+import SocialLinks from '~/components/SocialLinks.astro';
+import VideoEmbed from '~/components/VideoEmbed.astro';
+import { FEATURED_VIDEOS, SITE, activeSocialLinks } from '~/config/site';
+import { DEFAULT_LOCALE, isLocale } from '~/i18n/config';
+import { useTranslations } from '~/i18n/utils';
+import BaseLayout from '~/layouts/BaseLayout.astro';
+
+const locale = isLocale(Astro.currentLocale) ? Astro.currentLocale : DEFAULT_LOCALE;
+const t = useTranslations(locale);
+
+const hasSocial = activeSocialLinks().length > 0;
+---
+
+<BaseLayout>
+  {/* --- Hero --- */}
+  <section class="qa-container py-20 md:py-28">
+    <div class="max-w-3xl">
+      <p class="mb-4 text-sm font-semibold tracking-widest text-brand uppercase">
+        {t('hero.eyebrow')}
+      </p>
+      <h1 class="font-display text-4xl font-bold tracking-tight text-balance text-fg md:text-6xl">
+        {t('hero.title')}
+      </h1>
+      <p class="mt-6 max-w-2xl text-lg text-pretty text-fg-muted md:text-xl">
+        {t('hero.subtitle')}
+      </p>
+
+      <div class="mt-10 flex flex-wrap items-center gap-3">
+        <a
+          href="#videos"
+          class="inline-flex items-center gap-2 rounded-md bg-brand px-6 py-3 font-semibold text-brand-fg transition-colors hover:bg-brand-hover"
+        >
+          {t('hero.cta.primary')}
+          <Icon name="lucide:arrow-right" class="h-4 w-4" aria-hidden="true" />
+        </a>
+        <a
+          href="#about"
+          class="inline-flex items-center rounded-md border border-border-strong px-6 py-3 font-semibold text-fg transition-colors hover:bg-bg-subtle"
+        >
+          {t('hero.cta.secondary')}
+        </a>
+      </div>
+
+      {hasSocial && <SocialLinks class="mt-10" />}
+    </div>
+  </section>
+
+  <AdSlot placement="header" height={[100, 90]} />
+
+  {/* --- Videos --- */}
+  <Section id="videos" title={t('videos.title')} subtitle={t('videos.subtitle')} muted>
+    {
+      FEATURED_VIDEOS.length > 0 ? (
+        <div class="grid gap-8 md:grid-cols-2">
+          {FEATURED_VIDEOS.map((video, index) => (
+            <VideoEmbed
+              provider={video.provider}
+              id={video.id}
+              title={video.title}
+              poster={video.poster}
+              eager={index === 0}
+            />
+          ))}
+        </div>
+      ) : (
+        <p class="rounded-lg border border-dashed border-border px-6 py-16 text-center text-fg-subtle">
+          {t('videos.empty')}
+        </p>
+      )
+    }
+  </Section>
+
+  <AdSlot placement="in-feed" />
+
+  {/* --- About --- */}
+  <Section id="about" title={t('about.title')}>
+    <p class="max-w-2xl text-lg text-pretty text-fg-muted">{t('about.body')}</p>
+  </Section>
+
+  {/* --- Social + contact --- */}
+  <Section id="contact" title={t('contact.title')} subtitle={t('contact.subtitle')} muted>
+    <div class="flex flex-col gap-8">
+      {
+        SITE.email && (
+          <a
+            href={`mailto:${SITE.email}`}
+            class="inline-flex w-fit items-center gap-2 rounded-md bg-brand px-6 py-3 font-semibold text-brand-fg transition-colors hover:bg-brand-hover"
+          >
+            <Icon name="lucide:mail" class="h-4 w-4" aria-hidden="true" />
+            {t('contact.email')}
+          </a>
+        )
+      }
+
+      {
+        hasSocial && (
+          <div>
+            <h3 class="mb-4 text-lg font-semibold text-fg">{t('social.title')}</h3>
+            <SocialLinks />
+          </div>
+        )
+      }
+    </div>
+  </Section>
+
+  <AdSlot placement="footer" />
+</BaseLayout>
