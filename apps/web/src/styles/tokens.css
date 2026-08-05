@@ -36,7 +36,9 @@
 @property --qa-hero-scrim {
   syntax: '<color>';
   inherits: true;
-  initial-value: rgb(251 250 248 / 0.6);
+  /* Mirrors the light-mode value below. Only reachable if `:root` never sets
+     the variable, but a stale figure here reads as a second opinion. */
+  initial-value: rgb(251 250 248 / 0.34);
 }
 
 @property --qa-hero-scrim-edge {
@@ -176,7 +178,27 @@
    * is nothing to protect.
    */
   --qa-fade: #fbfaf8;
-  --qa-hero-scrim: rgb(251 250 248 / 0.6);
+  /**
+   * 0.34, not 0.6. At 0.6 the paper and the scrim together left only ~25% of
+   * the photograph visible and the landscape lost its detail — the lake and the
+   * ridges flattened into one pale field. 0.34 puts that at ~41%.
+   *
+   * The ceiling is the subtitle, which is `--qa-fg-muted` sitting directly on
+   * this. Measured against the actual photograph, the band under the wordmark
+   * is bright (median luminance 213), so contrast there is 6.1:1 at this value
+   * and 5.4:1 at the 5th percentile — both clear of WCAG AA.
+   *
+   * Note what the numbers say about further changes: dropping the scrim from
+   * 0.42 to 0.30 costs only 0.2 of contrast ratio. The scrim is not what makes
+   * this text readable — the photograph is simply bright here. So if it needs
+   * to go lighter again, contrast is not the thing that will stop you; the
+   * design is. Past ~0.3 the type starts sitting on open photograph rather than
+   * on a surface, and dark upper-left ridge creeps toward the wordmark.
+   *
+   * Dark mode is deliberately NOT matched: its scrim is protecting light type
+   * on a dark photograph, the opposite problem, and it already reads correctly.
+   */
+  --qa-hero-scrim: rgb(251 250 248 / 0.34);
   --qa-hero-scrim-edge: rgb(251 250 248 / 0.06);
   --qa-hero-photo-opacity: 0.62;
   --qa-hero-photo-filter: grayscale(1) contrast(1.04) brightness(1.02);

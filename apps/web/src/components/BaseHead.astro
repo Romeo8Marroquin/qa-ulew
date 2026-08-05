@@ -93,7 +93,15 @@ const graph: Record<string, unknown>[] = [
       postalCode: '07001',
       addressCountry: 'GT',
     },
-    areaServed: { '@type': 'Country', name: 'Guatemala' },
+    // The department of Sololá, not Guatemala at large. `areaServed` is how a
+    // search engine decides which local queries this station is a candidate
+    // for, so claiming the whole country competes for queries it cannot win
+    // and dilutes the ones it can. Guatemala stays as the containing place.
+    areaServed: {
+      '@type': 'AdministrativeArea',
+      name: 'Sololá',
+      containedInPlace: { '@type': 'Country', name: 'Guatemala' },
+    },
     inLanguage: meta.htmlLang,
     // Links the site to the channel's profiles, so they are understood as the
     // same entity rather than unrelated accounts.

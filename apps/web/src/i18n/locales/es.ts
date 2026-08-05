@@ -15,8 +15,17 @@ export const es = {
   'site.title': 'Qa Ulew',
   /** The channel's own tagline, taken from the logo. Do not paraphrase it. */
   'site.tagline': 'Conectando con nuestra cultura',
+  /**
+   * "sololateco", not "guatemalteco". The channel is from Sololá, and naming
+   * the country instead claims a reach it does not have — it also competes for
+   * queries against every channel in Guatemala rather than the ones it can win.
+   *
+   * Only the demonym changes. "nuestra tierra" is not a generic stand-in for
+   * the country: it is what Qa Ulew means, and it is as true of Sololá as of
+   * anywhere. Do not swap it for a place name.
+   */
   'site.description':
-    'Qa Ulew TV es un canal guatemalteco que conecta con nuestra cultura: reportajes, tradiciones y las historias de nuestra tierra y su gente.',
+    'Qa Ulew TV es un canal sololateco que conecta con nuestra cultura: reportajes, tradiciones y las historias de nuestra tierra y su gente.',
 
   // --- Navigation -------------------------------------------------------
   'nav.home': 'Inicio',
