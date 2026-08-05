@@ -15,6 +15,7 @@
     "brand:icons": "node ./scripts/prepare-icons.mjs",
     "brand:og": "node ./scripts/prepare-og.mjs",
     "content:youtube": "node ./scripts/refresh-youtube.mjs",
+    "seo:indexnow": "node ./scripts/indexnow.mjs",
     "cf:preview": "wrangler pages dev ./dist",
     "cf:deploy": "wrangler pages deploy ./dist"
   },

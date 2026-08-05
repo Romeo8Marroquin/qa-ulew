@@ -185,6 +185,13 @@ const jsonLd = { '@context': 'https://schema.org', '@graph': graph };
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
 <meta property="og:image:alt" content={`${SITE.name} - ${t('site.tagline')}`} />
+{
+  /* Meta's Sharing Debugger reports fb:app_id as a missing *required* property.
+     It is not required for the card — that renders without it — only for the
+     per-domain analytics inside Meta's dashboard. Emitted once a real app id
+     exists; a fabricated one would attribute our traffic to someone else's app. */
+}
+{SITE.facebookAppId && <meta property="fb:app_id" content={SITE.facebookAppId} />}
 
 {/* --- X / Twitter. Falls back to Open Graph for anything not repeated here. --- */}
 <meta name="twitter:card" content="summary_large_image" />
@@ -197,9 +204,18 @@ const jsonLd = { '@context': 'https://schema.org', '@graph': graph };
 
 {
   /* --- Icons, generated from the wordmark's Q by scripts/prepare-icons.mjs.
-       Apple ignores the manifest, so apple-touch-icon needs its own tag. --- */
+       Apple ignores the manifest, so apple-touch-icon needs its own tag.
+
+       Sizes are declared largest-first because Google picks the icon for the
+       search result from these tags, and its guidance is to serve something
+       larger than 48x48. A lone 32px favicon — which is what this was — gets
+       upscaled next to the result, so a generic globe is the better-looking
+       option and Google often keeps showing it. --- */
 }
+<link rel="icon" href="/icons/favicon-96.png" type="image/png" sizes="96x96" />
+<link rel="icon" href="/icons/favicon-48.png" type="image/png" sizes="48x48" />
 <link rel="icon" href="/icons/favicon-32.png" type="image/png" sizes="32x32" />
+<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" sizes="180x180" />
 <link rel="manifest" href="/manifest.webmanifest" />
 <link rel="sitemap" href="/sitemap-index.xml" />

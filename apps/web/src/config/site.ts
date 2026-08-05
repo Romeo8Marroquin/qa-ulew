@@ -26,6 +26,16 @@ export const SITE = {
   ogImage: '/og-default.png',
   /** TODO: fill in if an X/Twitter account is ever created (e.g. '@qaulew'). */
   twitterHandle: '',
+  /**
+   * Meta app id, for the `fb:app_id` tag.
+   *
+   * Meta's Sharing Debugger lists this as a missing *required* property. It is
+   * not required for a link preview — ours renders correctly without it. It
+   * only attributes shares to a registered Meta app so they show up in that
+   * app's Domain Insights. Empty means the tag is not emitted at all; see
+   * docs/seo.md for how to register an app and get a real id.
+   */
+  facebookAppId: '',
 } as const;
 
 /**
@@ -189,6 +199,25 @@ export const ADS = {
 } as const;
 
 export const adsEnabled = (): boolean => ADS.provider !== 'none';
+
+/**
+ * IndexNow — the push protocol Bing, Yandex, Seznam and Naver share.
+ *
+ * A sitemap only says "here are my URLs, come back whenever". IndexNow says
+ * "this URL changed, now", which is the difference between Bing's *Discovered
+ * but not crawled* clearing in hours instead of weeks.
+ *
+ * The key is a public, self-issued identifier, not a secret: ownership is
+ * proved by serving the same value at `/<key>.txt`, so anyone can read it by
+ * definition. Its only job is to stop a stranger submitting URLs on our behalf.
+ * Generated once with `randomBytes(16)`; there is no reason to ever rotate it.
+ *
+ * `pnpm --filter @qa-ulew/web seo:indexnow` keeps the key file and the value
+ * below in sync and does the ping.
+ */
+export const INDEXNOW = {
+  key: '006aadbc32c1d9ee0a2c30f043d3ccbe',
+} as const;
 
 /**
  * Cloudflare Web Analytics. Privacy-friendly, free, cookie-free, and needs no

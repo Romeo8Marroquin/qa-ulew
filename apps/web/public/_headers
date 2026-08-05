@@ -14,7 +14,17 @@
 /_astro/*
   Cache-Control: public, max-age=31536000, immutable
 
-/favicon.svg
+# Icons and the share image are not fingerprinted, so they cannot be immutable —
+# a week is long enough to be cheap and short enough that a rebrand lands. The
+# crawlers that matter here (Googlebot-Image for the favicon, Meta's scraper for
+# the card) revalidate on their own schedule regardless.
+/favicon.ico
+  Cache-Control: public, max-age=604800
+
+/icons/*
+  Cache-Control: public, max-age=604800
+
+/og-default.png
   Cache-Control: public, max-age=604800
 
 # NOTE: a Content-Security-Policy is deliberately NOT set yet. The video
