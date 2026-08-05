@@ -191,9 +191,20 @@ export const ADS = {
 export const adsEnabled = (): boolean => ADS.provider !== 'none';
 
 /**
- * Analytics. Cloudflare Web Analytics is privacy-friendly, free, and needs no
- * cookie banner — the recommended default. Empty token = no script emitted.
+ * Cloudflare Web Analytics. Privacy-friendly, free, cookie-free, and needs no
+ * consent banner. An empty token emits no script at all.
+ *
+ * The token is NOT a secret. It is a write-only beacon identifier that ships in
+ * the HTML of every page, so it is public whether or not it lives here. It
+ * cannot read analytics data and grants no access to the Cloudflare account —
+ * the same category as a Google Analytics measurement ID. Putting it in an
+ * environment variable would hide it from code review without hiding it from
+ * anyone who views source.
+ *
+ * Installed manually rather than via Cloudflare's automatic injection: that
+ * feature rewrites HTML at a proxied origin, and Cloudflare Pages is not one,
+ * so enabling it had no effect (verified — no beacon reached the page).
  */
 export const ANALYTICS = {
-  cloudflareToken: '',
+  cloudflareToken: '7ef4d0621f6c4229a0cc001a13c9e145',
 } as const;

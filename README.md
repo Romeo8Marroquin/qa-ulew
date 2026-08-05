@@ -97,6 +97,7 @@ Three rules keep this working:
 | [design.md](docs/design.md)             | Applying the real palette, fonts and logo; theming        |
 | [i18n.md](docs/i18n.md)                 | Using translations; adding a language                     |
 | [content.md](docs/content.md)           | Videos, embeds, social links, Cloudflare Stream migration |
+| [seo.md](docs/seo.md)                   | Metadata, share cards, search engines, analytics, upkeep  |
 | [ads.md](docs/ads.md)                   | Ad strategy, AdSense vs. custom, prerequisites            |
 
 ---
