@@ -2,8 +2,15 @@
 import BaseHead from '~/components/BaseHead.astro';
 import Footer from '~/components/Footer.astro';
 import Header from '~/components/Header.astro';
+import Scrollbar from '~/components/Scrollbar.astro';
 import { DEFAULT_LOCALE, LOCALE_META, isLocale, type Locale } from '~/i18n/config';
 import { useTranslations } from '~/i18n/utils';
+
+// Self-hosted variable fonts. No request to Google, nothing to disclose in a
+// privacy policy, and no third-party host that can be slow or go down.
+// Only the weight axis is loaded — see the note in global.css.
+import '@fontsource-variable/inter/wght.css';
+import '@fontsource-variable/fraunces/wght.css';
 import '~/styles/global.css';
 
 interface Props {
@@ -11,9 +18,14 @@ interface Props {
   description?: string;
   image?: string;
   noindex?: boolean;
+  /**
+   * Pages whose first element is a full-bleed hero sit *under* the fixed
+   * header. Everything else needs top padding so content is not covered.
+   */
+  fullBleed?: boolean;
 }
 
-const { title, description, image, noindex } = Astro.props;
+const { title, description, image, noindex, fullBleed = false } = Astro.props;
 
 const locale: Locale = isLocale(Astro.currentLocale) ? Astro.currentLocale : DEFAULT_LOCALE;
 const meta = LOCALE_META[locale];
@@ -32,6 +44,12 @@ const t = useTranslations(locale);
     }
     <script is:inline>
       (function () {
+        var root = document.documentElement;
+
+        // Suppress transitions until after first paint, so resolving the theme
+        // here does not visibly animate from the default palette on every load.
+        root.setAttribute('data-booting', '');
+
         try {
           var stored = localStorage.getItem('qa-theme');
           var theme =
@@ -40,10 +58,18 @@ const t = useTranslations(locale);
               : window.matchMedia('(prefers-color-scheme: dark)').matches
                 ? 'dark'
                 : 'light';
-          document.documentElement.dataset.theme = theme;
+          root.dataset.theme = theme;
         } catch (error) {
-          document.documentElement.dataset.theme = 'light';
+          root.dataset.theme = 'light';
         }
+
+        // Two frames: the first paints the resolved theme, the second releases
+        // transitions. Releasing after one frame can still catch the paint.
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            root.removeAttribute('data-booting');
+          });
+        });
       })();
     </script>
 
@@ -53,12 +79,15 @@ const t = useTranslations(locale);
   <body class="flex min-h-screen flex-col">
     <a href="#main" class="qa-sr-only">{t('nav.skipToContent')}</a>
 
-    <Header />
+    {/* A full-bleed page opens with the dark hero, which the header overlays. */}
+    <Header overlay={fullBleed} />
 
-    <main id="main" class="flex-1">
+    <main id="main" class:list={['flex-1', !fullBleed && 'pt-[var(--qa-header-height)]']}>
       <slot />
     </main>
 
     <Footer />
+
+    <Scrollbar />
   </body>
 </html>

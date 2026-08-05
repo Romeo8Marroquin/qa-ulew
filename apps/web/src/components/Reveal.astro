@@ -1,0 +1,64 @@
+---
+/**
+ * Scroll-reveal wrapper.
+ *
+ * Wraps children so they fade and rise slightly as they enter the viewport.
+ *
+ * The hidden state is applied by JavaScript, never by CSS. If the script fails
+ * to run — blocked, errored, an old browser — the content is simply visible.
+ * Content must never be hidden behind an animation that might not fire.
+ *
+ * `delay` staggers siblings. Keep the steps small (60–90ms); long staggers make
+ * a page feel like it is loading slowly rather than arriving elegantly.
+ */
+// Exported so `noUnusedLocals` does not flag it. Renaming `as` to `Tag` during
+// destructuring means TypeScript otherwise sees the interface as unreferenced,
+// and casting `Astro.props as Props` would break Astro's implicit inference of
+// the component's public props.
+export interface Props {
+  /** Milliseconds to delay this element's reveal. */
+  delay?: number;
+  /** Element to render. Use a semantic tag rather than nesting extra divs. */
+  as?: 'div' | 'section' | 'article' | 'li' | 'header' | 'p';
+  class?: string;
+}
+
+const { delay = 0, as: Tag = 'div', class: className = '' } = Astro.props;
+---
+
+<Tag data-reveal class={className} style={delay ? `transition-delay:${delay}ms` : undefined}>
+  <slot />
+</Tag>
+
+<script>
+  const items = document.querySelectorAll<HTMLElement>('[data-reveal]');
+
+  // Honour the OS setting: no entrance animation, everything simply present.
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (!reducedMotion && 'IntersectionObserver' in window) {
+    // Hide only now that we know the observer will run to un-hide them.
+    items.forEach((item) => item.setAttribute('data-reveal-hidden', ''));
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const target = entry.target as HTMLElement;
+          target.setAttribute('data-revealed', '');
+          target.removeAttribute('data-reveal-hidden');
+          // Reveal once. Re-animating on scroll-up is distracting.
+          observer.unobserve(target);
+        }
+      },
+      {
+        // Start slightly before the element reaches the fold, so it finishes
+        // arriving as it becomes properly visible.
+        rootMargin: '0px 0px -12% 0px',
+        threshold: 0.05,
+      },
+    );
+
+    items.forEach((item) => observer.observe(item));
+  }
+</script>

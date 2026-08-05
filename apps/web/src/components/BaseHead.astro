@@ -1,11 +1,27 @@
 ---
 /**
- * Everything that belongs in <head>: metadata, Open Graph, canonical URL,
- * hreflang alternates and the (optional) analytics tag.
+ * Everything that belongs in <head>: metadata, sharing cards, icons and
+ * structured data.
+ *
+ * HOW LINK PREVIEWS ACTUALLY WORK
+ *
+ * WhatsApp, Messenger, Facebook, LinkedIn, Slack, Discord and Telegram all
+ * read Open Graph. X reads its own `twitter:` tags and falls back to Open
+ * Graph for anything missing. So Open Graph is the one that has to be complete;
+ * the Twitter tags only need to cover what differs.
+ *
+ * Two details that are skipped surprisingly often and both cause real problems:
+ *
+ *   - og:image MUST be an absolute URL. Several scrapers, WhatsApp included,
+ *     will not resolve a relative one, and the card silently renders blank.
+ *   - Declaring og:image:width/height lets a scraper lay out the card before
+ *     it has fetched the image. Without them the first share of a link often
+ *     shows no picture at all, because the crawler gave up waiting.
  */
-import { ANALYTICS, SITE } from '~/config/site';
+import { ANALYTICS, CONTACT, SITE, activeSocialLinks } from '~/config/site';
 import { DEFAULT_LOCALE, LOCALE_META, isLocale, type Locale } from '~/i18n/config';
 import { alternateLocales, useTranslations } from '~/i18n/utils';
+import snapshot from '~/data/youtube-feed.json';
 
 interface Props {
   /** Page title, already translated. Falls back to the site name. */
@@ -29,12 +45,101 @@ const locale: Locale = isLocale(Astro.currentLocale) ? Astro.currentLocale : DEF
 const t = useTranslations(locale);
 const meta = LOCALE_META[locale];
 
-const pageTitle = title ? `${title} · ${SITE.name}` : `${SITE.name} — ${t('site.tagline')}`;
+// Plain hyphens rather than an em dash or a middot: those read as typographic
+// affectation in a browser tab, and a title is ordinary language.
+const pageTitle = title ? `${title} - ${SITE.name}` : `${SITE.name} - ${t('site.tagline')}`;
 const pageDescription = description ?? t('site.description');
 
-const canonical = new URL(Astro.url.pathname, Astro.site ?? SITE.url);
-const socialImage = new URL(image ?? SITE.ogImage, Astro.site ?? SITE.url);
-const alternates = alternateLocales(Astro.url.pathname, Astro.site?.href ?? SITE.url);
+const origin = Astro.site?.href ?? SITE.url;
+const canonical = new URL(Astro.url.pathname, origin);
+const socialImage = new URL(image ?? SITE.ogImage, origin);
+const alternates = alternateLocales(Astro.url.pathname, origin);
+
+/**
+ * Structured data, as a single @graph rather than several loose blocks.
+ *
+ * A graph lets the nodes reference each other by @id — the site is `publisher`
+ * of itself, the videos belong to the organisation — which is what allows a
+ * search engine to treat them as one entity instead of unrelated fragments.
+ */
+const orgId = `${SITE.url}/#organization`;
+const siteId = `${SITE.url}/#website`;
+
+const graph: Record<string, unknown>[] = [
+  {
+    // TelevisionStation rather than plain Organization: it is a LocalBusiness
+    // subtype, so the address and phone are meaningful to search engines
+    // instead of being ignored as decoration.
+    '@type': 'TelevisionStation',
+    '@id': orgId,
+    name: SITE.name,
+    alternateName: 'Qa Ulew TV',
+    url: SITE.url,
+    logo: {
+      '@type': 'ImageObject',
+      url: new URL('/icons/icon-512.png', origin).href,
+      width: 512,
+      height: 512,
+    },
+    image: socialImage.href,
+    description: t('site.description'),
+    slogan: t('site.tagline'),
+    email: CONTACT.email,
+    telephone: CONTACT.phone,
+    address: {
+      '@type': 'PostalAddress',
+      addressLocality: 'Sololá',
+      addressRegion: 'Sololá',
+      postalCode: '07001',
+      addressCountry: 'GT',
+    },
+    areaServed: { '@type': 'Country', name: 'Guatemala' },
+    inLanguage: meta.htmlLang,
+    // Links the site to the channel's profiles, so they are understood as the
+    // same entity rather than unrelated accounts.
+    sameAs: activeSocialLinks().map((link) => link.url),
+  },
+  {
+    '@type': 'WebSite',
+    '@id': siteId,
+    url: SITE.url,
+    name: SITE.name,
+    description: t('site.description'),
+    inLanguage: meta.htmlLang,
+    publisher: { '@id': orgId },
+  },
+];
+
+/**
+ * Videos, only on the page that lists them, and only when a description
+ * exists — Google requires name, description, thumbnailUrl and uploadDate for
+ * a VideoObject, and an incomplete one is worse than none.
+ */
+interface SnapshotVideo {
+  id: string;
+  title: string;
+  published: string;
+  /** Optional: snapshots written before descriptions were captured lack it. */
+  description?: string;
+}
+
+const videoNodes = (snapshot.videos as SnapshotVideo[])
+  .filter((video) => video.description && video.published)
+  .slice(0, 6)
+  .map((video) => ({
+    '@type': 'VideoObject',
+    name: video.title,
+    description: video.description,
+    thumbnailUrl: `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`,
+    uploadDate: video.published,
+    embedUrl: `https://www.youtube-nocookie.com/embed/${video.id}`,
+    url: `https://www.youtube.com/watch?v=${video.id}`,
+    publisher: { '@id': orgId },
+  }));
+
+if (!title && videoNodes.length > 0) graph.push(...videoNodes);
+
+const jsonLd = { '@context': 'https://schema.org', '@graph': graph };
 ---
 
 <meta charset="utf-8" />
@@ -45,30 +150,67 @@ const alternates = alternateLocales(Astro.url.pathname, Astro.site?.href ?? SITE
 <meta name="description" content={pageDescription} />
 <link rel="canonical" href={canonical.href} />
 
-{blockIndexing && <meta name="robots" content="noindex, nofollow" />}
+{
+  /*
+  `max-image-preview:large` is what allows Google to show a full-width image
+  alongside the result rather than a thumbnail, and the two `-1` values remove
+  the default limits on snippet and video preview length. Without them the
+  listing is quietly downgraded.
+*/
+}
+{
+  blockIndexing ? (
+    <meta name="robots" content="noindex, nofollow" />
+  ) : (
+    <meta
+      name="robots"
+      content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+    />
+  )
+}
 
 {/* Emitted only once a second locale exists. */}
 {alternates.map((alt) => <link rel="alternate" hreflang={alt.hrefLang} href={alt.href} />)}
 
-{/* --- Open Graph --- */}
+{/* --- Open Graph: WhatsApp, Messenger, Facebook, LinkedIn, Slack, Discord, Telegram --- */}
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content={SITE.name} />
 <meta property="og:title" content={pageTitle} />
 <meta property="og:description" content={pageDescription} />
 <meta property="og:url" content={canonical.href} />
-<meta property="og:image" content={socialImage.href} />
 <meta property="og:locale" content={meta.ogLocale} />
+<meta property="og:image" content={socialImage.href} />
+<meta property="og:image:secure_url" content={socialImage.href} />
+<meta property="og:image:type" content="image/png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content={`${SITE.name} - ${t('site.tagline')}`} />
 
-{/* --- Twitter/X card --- */}
+{/* --- X / Twitter. Falls back to Open Graph for anything not repeated here. --- */}
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content={pageTitle} />
 <meta name="twitter:description" content={pageDescription} />
 <meta name="twitter:image" content={socialImage.href} />
+<meta name="twitter:image:alt" content={`${SITE.name} - ${t('site.tagline')}`} />
 {SITE.twitterHandle && <meta name="twitter:site" content={SITE.twitterHandle} />}
+{SITE.twitterHandle && <meta name="twitter:creator" content={SITE.twitterHandle} />}
 
-{/* --- Icons. TODO: replace the placeholder favicon with the real logo. --- */}
-<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+{
+  /* --- Icons, generated from the wordmark's Q by scripts/prepare-icons.mjs.
+       Apple ignores the manifest, so apple-touch-icon needs its own tag. --- */
+}
+<link rel="icon" href="/icons/favicon-32.png" type="image/png" sizes="32x32" />
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" sizes="180x180" />
+<link rel="manifest" href="/manifest.webmanifest" />
 <link rel="sitemap" href="/sitemap-index.xml" />
+
+{/* Matches the browser chrome to the page, per scheme. */}
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfaf8" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0e0d0b" />
+<meta name="apple-mobile-web-app-title" content={SITE.name} />
+<meta name="format-detection" content="telephone=no" />
+
+<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
 
 {/* Warm up the video hosts only when the user is likely to hit them. */}
 <link rel="preconnect" href="https://www.youtube-nocookie.com" crossorigin />

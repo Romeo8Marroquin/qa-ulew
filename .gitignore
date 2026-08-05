@@ -121,6 +121,20 @@ llm.txt
 .github/prompts/
 .github/chatmodes/
 
+# --- Working assets ---
+# assets/ is a local staging area for source and reference material: mockups,
+# screenshots, exports, placeholder art. None of it is served, and most of it is
+# temporary and will be replaced by the official brand files.
+#
+# Keeping it out of git matters more than it looks: binaries stay in history
+# forever, even after deletion, and throwaway placeholders are not part of the
+# project record. Only the README documenting the convention is tracked.
+#
+# Final, web-ready files do not live here at all — they go to apps/web/public/,
+# which IS tracked.
+assets/**
+!assets/README.md
+
 # --- Internal notes and planning ---
 # docs/ is the project's documentation and is tracked. Anything internal —
 # planning, user stories, estimates, meeting notes, scratch work — stays local.

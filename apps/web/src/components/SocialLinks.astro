@@ -3,6 +3,13 @@
  * Renders only the platforms that have a URL configured in `config/site.ts`.
  * Nothing at all is rendered while none are set, so the site never ships a
  * dead link.
+ *
+ * No circular chips — a ring around every icon turns a row of links into a row
+ * of buttons, which they are not.
+ *
+ * Hover resolves to ink, not to each platform's own colour. Brand colours were
+ * tried and pulled: three saturated hues appearing on a strictly monochrome
+ * page read as someone else's branding dropped into ours.
  */
 import { Icon } from 'astro-icon/components';
 
@@ -11,22 +18,30 @@ import { DEFAULT_LOCALE, isLocale } from '~/i18n/config';
 import { useTranslations } from '~/i18n/utils';
 
 interface Props {
+  /** `labelled` prints the platform name beside the icon. */
+  variant?: 'icon' | 'labelled';
   size?: 'sm' | 'md';
   class?: string;
 }
 
-const { size = 'md', class: className = '' } = Astro.props;
+const { variant = 'icon', size = 'md', class: className = '' } = Astro.props;
 
 const t = useTranslations(isLocale(Astro.currentLocale) ? Astro.currentLocale : DEFAULT_LOCALE);
 const links = activeSocialLinks();
 
-const box = size === 'sm' ? 'h-9 w-9' : 'h-11 w-11';
-const glyph = size === 'sm' ? 'h-4 w-4' : 'h-5 w-5';
+const glyph = size === 'sm' ? 'h-5 w-5' : 'h-6 w-6';
+const labelled = variant === 'labelled';
 ---
 
 {
   links.length > 0 && (
-    <ul class={`flex flex-wrap items-center gap-2 ${className}`}>
+    <ul
+      class:list={[
+        'flex flex-wrap items-center',
+        labelled ? 'gap-x-8 gap-y-3' : size === 'sm' ? 'gap-5' : 'gap-6',
+        className,
+      ]}
+    >
       {links.map((link) => (
         <li>
           <a
@@ -34,13 +49,38 @@ const glyph = size === 'sm' ? 'h-4 w-4' : 'h-5 w-5';
             target="_blank"
             rel="noopener noreferrer"
             aria-label={t('social.followOn', { platform: link.label })}
-            title={link.label}
-            class={`inline-flex border-border text-fg-muted hover:border-brand hover:text-brand ${box} items-center justify-center rounded-full border transition-colors`}
+            class="qa-social inline-flex items-center gap-2.5 py-1 text-fg-muted"
+            title={labelled ? undefined : link.label}
           >
             <Icon name={`simple-icons:${link.id}`} class={glyph} aria-hidden="true" />
+            {labelled && <span class="text-sm font-medium">{link.label}</span>}
           </a>
         </li>
       ))}
     </ul>
   )
 }
+
+<style>
+  /*
+   * The lift is small and the colour shift carries the feedback. Vertical
+   * padding keeps the tap target comfortable even though nothing is drawn
+   * around the glyph — removing the ring must not shrink the touch area.
+   */
+  .qa-social {
+    transition:
+      color var(--qa-dur) var(--qa-ease),
+      transform var(--qa-dur) var(--qa-ease);
+  }
+
+  .qa-social:hover,
+  .qa-social:focus-visible {
+    color: var(--qa-fg);
+    transform: translateY(-2px);
+  }
+
+  .qa-social:active {
+    transform: translateY(0);
+    transition-duration: 60ms;
+  }
+</style>

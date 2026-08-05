@@ -103,7 +103,7 @@ Three rules keep this working:
 
 ## Deployment
 
-Cloudflare Pages builds from `main`. The settings that matter:
+Cloudflare **Pages** builds from `main`. The settings that matter:
 
 - Build command: `pnpm --filter @qa-ulew/web build`
 - Build output directory: `apps/web/dist`
@@ -112,8 +112,13 @@ Cloudflare Pages builds from `main`. The settings that matter:
 - **`PNPM_VERSION=11.20.0` is required** — the build image ships pnpm 10 and
   cannot read this lockfile.
 
-Full walkthrough, including the custom domain and preview-environment
-variables, in [docs/deployment.md](docs/deployment.md).
+Use **Pages**, not Workers Builds. If the dashboard is asking for a "Deploy
+command" or a "Path", you are in the wrong product and it cannot deploy this
+repository — see [docs/deployment.md](docs/deployment.md) §0.
+
+The full configuration record — every value currently set in production, plus
+the custom domain, preview variables, a verification checklist and a
+troubleshooting table — is in [docs/deployment.md](docs/deployment.md).
 
 ---
 

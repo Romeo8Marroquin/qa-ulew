@@ -15,10 +15,6 @@
  * Expose the design tokens as Tailwind utilities.
  * `@theme inline` keeps them as var() references, so they stay live when the
  * theme attribute flips — no rebuild, no duplicated palettes.
- *
- *   --color-bg      -> bg-bg / text-bg / border-bg
- *   --color-brand   -> bg-brand / text-brand
- *   --font-sans     -> font-sans
  */
 @theme inline {
   --color-bg: var(--qa-bg);
@@ -52,6 +48,7 @@
   --shadow-md: var(--qa-shadow-md);
   --shadow-lg: var(--qa-shadow-lg);
 
+  --ease-brand: var(--qa-ease);
   --container-site: var(--qa-container);
 }
 
@@ -59,6 +56,43 @@
   html {
     scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
+
+    /**
+     * Drive the hero's registered custom properties (see tokens.css).
+     *
+     * They are declared on :root and [data-theme='dark'], so the transition
+     * has to live on the element that owns them. Descendants reading them
+     * repaint as the values move, which is what lets the scrim gradient
+     * cross-fade even though `background-image` itself cannot animate.
+     *
+     * Same duration and curve as everything else, so the photograph and the
+     * page around it move as one.
+     */
+    transition:
+      --qa-hero-scrim 320ms var(--qa-ease-inout),
+      --qa-hero-scrim-edge 320ms var(--qa-ease-inout),
+      --qa-hero-photo-opacity 320ms var(--qa-ease-inout);
+  }
+
+  /**
+   * The background is declared HERE as well as on body, and that is not a
+   * duplicate.
+   *
+   * CSS propagates body's background to the canvas when html has none — which
+   * means body paints nothing itself. `backdrop-filter` samples the backdrop
+   * image, and the canvas background is not part of it. So anything blurring
+   * over a section that had no background of its own found nothing to sample
+   * and rendered the page perfectly sharp.
+   *
+   * That is why the effect looked section-dependent: the videos and contact
+   * sections are `muted` and paint `bg-bg-subtle`, so they blurred correctly,
+   * while the about section paints nothing and never did.
+   *
+   * Giving html a background stops the propagation, so body's own background
+   * paints as a real layer behind every section.
+   */
+  html {
+    background-color: var(--qa-bg);
   }
 
   body {
@@ -69,19 +103,160 @@
     text-rendering: optimizeLegibility;
   }
 
-  /* Visible, consistent focus ring for keyboard users on every interactive element. */
+  /**
+   * Theme change should feel like a dimmer, not a light switch.
+   *
+   * Every surface, rule and piece of text cross-fades together on one timing,
+   * rather than the body alone animating while borders and panels snap.
+   *
+   * 320ms, starting after the hero overlay's 200ms fade-out — the two phases
+   * together land at roughly half a second, which is where a full-page tonal
+   * shift stops feeling electric without starting to drag.
+   *
+   * Scoped to the properties that actually change, so it never interferes with
+   * transform or opacity animations elsewhere.
+   */
+  :where(
+    body,
+    header,
+    section,
+    footer,
+    main,
+    article,
+    aside,
+    div,
+    span,
+    p,
+    a,
+    li,
+    h1,
+    h2,
+    h3,
+    button,
+    img,
+    figure,
+    figcaption,
+    dl,
+    dt,
+    dd
+  ) {
+    transition:
+      background-color 320ms var(--qa-ease-inout),
+      border-color 320ms var(--qa-ease-inout),
+      color 320ms var(--qa-ease-inout),
+      fill 320ms var(--qa-ease-inout),
+      opacity 320ms var(--qa-ease-inout);
+  }
+
+  /**
+   * Suppress all of that until after first paint.
+   *
+   * `data-booting` is set by the inline script in BaseLayout and removed on the
+   * next frame. Without it, the theme resolution that runs before paint would
+   * animate on load — the page would visibly fade from the default palette
+   * into the real one every single time it is opened.
+   */
+  html[data-booting] *,
+  html[data-booting] *::before,
+  html[data-booting] *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  /**
+   * Content settles in rather than appearing. Very short and very small — this
+   * should register as "the page arrived smoothly", not as an animation the
+   * visitor has to wait through.
+   */
+  @keyframes qa-page-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  html:not([data-booting]) body {
+    animation: qa-page-in 420ms var(--qa-ease) both;
+  }
+
+  /* Display type is set tight; Fraunces is drawn generously and looks loose at
+   * large sizes with default tracking.
+   *
+   * Only the weight axis is loaded (36 KB vs 118 KB for the full build). The
+   * SOFT and WONK axes would warm the terminals a little closer to the logo,
+   * but not by enough to justify tripling the file — swap the import in
+   * BaseLayout to `fraunces/soft.css` if that ever changes. */
+  :is(h1, h2, h3, .font-display) {
+    letter-spacing: -0.02em;
+  }
+
   :focus-visible {
     outline: 2px solid var(--qa-focus);
-    outline-offset: 2px;
+    outline-offset: 3px;
     border-radius: var(--qa-radius-sm);
   }
 
-  ::selection {
-    background-color: var(--qa-brand);
-    color: var(--qa-brand-fg);
+  /**
+   * Scrollbar.
+   *
+   * The browser default is the loudest unstyled element on a monochrome page,
+   * and it does not follow the theme — a bright grey bar against the dark
+   * hero, and a heavy one in light mode.
+   *
+   * Both syntaxes are needed: `scrollbar-width`/`scrollbar-color` is the
+   * standard (Firefox, and Chromium 121+), `::-webkit-scrollbar` covers Safari
+   * and older Chromium. The standard properties win where supported.
+   *
+   * Width is NOT reduced below the default in the webkit rule — a hairline
+   * scrollbar looks refined and is genuinely harder to grab. 10px with an
+   * inset thumb keeps it easy to hit while reading as a thin line.
+   */
+  /**
+   * Scrollbar.
+   *
+   * The native one is hidden ONLY once `components/Scrollbar.astro` has
+   * mounted its replacement and set this attribute. If that script never runs,
+   * the normal scrollbar stays exactly where it was — the page is never left
+   * with no way to see or drag the scroll position.
+   *
+   * See that component for why a native scrollbar could not do the job: on
+   * Windows, Chromium's classic scrollbars live in a gutter outside the layout
+   * viewport, so a "transparent" track shows the page background rather than
+   * the page, and none of fading, proximity or width can be animated.
+   */
+  html[data-custom-scrollbar] {
+    scrollbar-width: none;
   }
 
-  /* Respect users who ask for less motion. */
+  html[data-custom-scrollbar]::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+
+  ::selection {
+    background-color: var(--qa-fg);
+    color: var(--qa-bg);
+  }
+
+  /*
+   * Buttons default to `cursor: default` in every browser, which makes them
+   * feel inert next to links. Anything clickable gets the pointer.
+   */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  summary,
+  label[for] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled='true'] {
+    cursor: not-allowed;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     html {
       scroll-behavior: auto;
@@ -93,12 +268,12 @@
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
     }
   }
 }
 
 @layer components {
-  /* Shared page gutter + max width. Used by every section. */
   .qa-container {
     width: 100%;
     max-width: var(--qa-container);
@@ -108,11 +283,216 @@
 
   @media (min-width: 768px) {
     .qa-container {
-      padding-inline: 2rem;
+      padding-inline: 2.5rem;
     }
   }
 
-  /* Screen-reader-only, but focusable (used by the skip link). */
+  /**
+   * Buttons.
+   *
+   * Defined once here rather than as a class soup repeated per usage — there
+   * are only two kinds on the site and they must stay identical.
+   *
+   * Both lift by 1px on hover. It is a small movement, but it is what makes a
+   * control feel physical rather than like a coloured rectangle, and it reads
+   * at any size.
+   */
+  .qa-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    padding: 0.875rem 1.75rem;
+    border-radius: var(--qa-radius-md);
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition:
+      background-color var(--qa-dur) var(--qa-ease),
+      border-color var(--qa-dur) var(--qa-ease),
+      color var(--qa-dur) var(--qa-ease),
+      transform var(--qa-dur) var(--qa-ease),
+      box-shadow var(--qa-dur) var(--qa-ease);
+  }
+
+  .qa-btn:hover {
+    transform: translateY(-1px);
+  }
+
+  /* Pressing returns it to the resting plane — the movement should reverse,
+   * not continue, or the control feels like it is falling away from the tap. */
+  .qa-btn:active {
+    transform: translateY(0);
+    transition-duration: 60ms;
+  }
+
+  .qa-btn-solid {
+    background-color: var(--qa-brand);
+    color: var(--qa-brand-fg);
+  }
+
+  .qa-btn-solid:hover {
+    background-color: var(--qa-brand-hover);
+    box-shadow: var(--qa-shadow-md);
+  }
+
+  .qa-btn-outline {
+    border-color: var(--qa-border-strong);
+    color: var(--qa-fg);
+  }
+
+  .qa-btn-outline:hover {
+    border-color: var(--qa-fg);
+    background-color: var(--qa-bg-subtle);
+  }
+
+  /**
+   * Icon control — the theme toggle, the menu trigger.
+   *
+   * No chip, no ring. These sit in the header among plain text links; drawing
+   * a circle behind them makes the bar look like a toolbar and gives them more
+   * weight than the navigation itself. The feedback is a colour shift and a
+   * 1px lift, matching how the text links behave.
+   *
+   * The padding keeps the tap target at 40px even though nothing is drawn, so
+   * removing the circle costs no touch accuracy.
+   */
+  .qa-icon-btn {
+    display: inline-flex;
+    height: 2.5rem;
+    width: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    color: var(--qa-fg-muted);
+    cursor: pointer;
+    transition:
+      color var(--qa-dur) var(--qa-ease),
+      transform var(--qa-dur) var(--qa-ease);
+  }
+
+  .qa-icon-btn:hover,
+  .qa-icon-btn:focus-visible {
+    color: var(--qa-fg);
+    transform: translateY(-1px);
+  }
+
+  .qa-icon-btn:active {
+    transform: translateY(0);
+    transition-duration: 60ms;
+  }
+
+  /**
+   * The wordmark ships as two artworks, black ink and white ink. Exactly one
+   * is displayed and the tokens decide which, so the mark is always the
+   * artwork the brand actually supplied — nothing is inverted or filtered.
+   *
+   * Deliberately NOT mix-blend-mode: blend modes resolve against the nearest
+   * stacking context, and the header creates one via backdrop-filter, which
+   * made an earlier version of the mark disappear over the hero.
+   */
+  .qa-logo-ink {
+    display: var(--qa-logo-ink);
+  }
+
+  .qa-logo-paper {
+    display: var(--qa-logo-paper);
+  }
+
+  /**
+   * Film grain.
+   *
+   * A flat dark panel reads as "empty div"; real broadcast and film imagery
+   * always carries some noise. This is an inline SVG turbulence filter — a few
+   * hundred bytes, no image request, and it tiles seamlessly.
+   *
+   * Kept very low opacity: grain should be felt rather than seen. It also
+   * masks banding in the large dark gradients, which is a genuine problem on
+   * 8-bit displays.
+   */
+  .qa-grain::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.055;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 140px 140px;
+  }
+
+  /**
+   * Content sitting on something dark regardless of the page theme — the hero
+   * photograph, most obviously. Overriding the tokens for the subtree means
+   * every child adapts automatically, instead of each one hardcoding white and
+   * needing a `dark:` variant that would be wrong here.
+   */
+  .qa-on-dark {
+    --qa-fg: #ffffff;
+    --qa-fg-muted: rgb(255 255 255 / 0.82);
+    --qa-fg-subtle: rgb(255 255 255 / 0.6);
+    --qa-border: rgb(255 255 255 / 0.28);
+    --qa-border-strong: rgb(255 255 255 / 0.45);
+    --qa-focus: #ffffff;
+    --qa-logo-ink: none;
+    --qa-logo-paper: block;
+    color: var(--qa-fg);
+  }
+
+  /**
+   * Scroll reveal.
+   *
+   * Elements start slightly low and transparent; an IntersectionObserver adds
+   * `data-revealed` as they enter the viewport. Two deliberate choices:
+   *
+   *  - The *hidden* state is applied by script, not by CSS. If JavaScript
+   *    fails or is blocked, everything is simply visible — content is never
+   *    hidden behind an animation that may never run.
+   *  - The travel is small (14px). Large entrance movement looks impressive
+   *    once and feels sluggish every time after.
+   */
+  [data-reveal] {
+    transition:
+      opacity var(--qa-dur-slow) var(--qa-ease),
+      transform var(--qa-dur-slow) var(--qa-ease);
+  }
+
+  [data-reveal][data-reveal-hidden] {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+
+  [data-reveal][data-revealed] {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Underline that draws in on hover, instead of appearing all at once. */
+  .qa-link {
+    position: relative;
+    text-decoration: none;
+  }
+
+  .qa-link::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    bottom: -2px;
+    height: 1px;
+    background-color: currentColor;
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform var(--qa-dur) var(--qa-ease);
+  }
+
+  .qa-link:hover::after,
+  .qa-link:focus-visible::after {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+
   .qa-sr-only {
     position: absolute;
     width: 1px;
@@ -135,8 +515,8 @@
     margin: 0;
     padding: 0.75rem 1rem;
     clip-path: none;
-    background-color: var(--qa-brand);
-    color: var(--qa-brand-fg);
+    background-color: var(--qa-fg);
+    color: var(--qa-bg);
     border-radius: var(--qa-radius-md);
   }
 }

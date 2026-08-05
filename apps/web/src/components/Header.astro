@@ -1,11 +1,20 @@
 ---
-import { Icon } from 'astro-icon/components';
-
 import LocalePicker from '~/components/LocalePicker.astro';
+import Logo from '~/components/Logo.astro';
 import ThemeToggle from '~/components/ThemeToggle.astro';
-import { SITE } from '~/config/site';
 import { DEFAULT_LOCALE, isLocale } from '~/i18n/config';
 import { localePath, useTranslations } from '~/i18n/utils';
+
+interface Props {
+  /**
+   * True when the page opens with a full-bleed dark hero that the header sits
+   * on top of. The header then starts transparent with light-on-dark styling,
+   * and switches to the normal theme once scrolled past it.
+   */
+  overlay?: boolean;
+}
+
+const { overlay = false } = Astro.props;
 
 const locale = isLocale(Astro.currentLocale) ? Astro.currentLocale : DEFAULT_LOCALE;
 const t = useTranslations(locale);
@@ -21,26 +30,46 @@ const navItems = [
 const home = localePath('/', locale);
 ---
 
+{
+  /*
+  The header starts transparent over the hero image and gains a background
+  once the page scrolls — a common pattern, but only worth doing if the
+  transition is driven by scroll position rather than appearing abruptly.
+  `data-scrolled` is toggled by the script below.
+*/
+}
 <header
-  class="sticky top-0 z-50 border-b border-border bg-bg/85 backdrop-blur-md supports-[backdrop-filter]:bg-bg/70"
+  data-site-header
+  data-overlay={overlay ? '' : undefined}
+  class="qa-header fixed inset-x-0 top-0 z-50"
 >
-  <div class="qa-container flex h-16 items-center justify-between gap-4">
-    {/* TODO: replace the wordmark with the real logo once it exists. */}
-    <a href={home} class="flex items-center gap-2 font-semibold tracking-tight text-fg">
-      <span
-        class="flex h-8 w-8 items-center justify-center rounded-md bg-brand text-sm font-bold text-brand-fg"
-      >
-        QU
-      </span>
-      <span class="text-lg">{SITE.name}</span>
+  <div class="qa-container flex h-[var(--qa-header-height)] items-center justify-between gap-4">
+    {
+      /*
+      On a page that opens with the hero, the wordmark is already on screen at
+      full size — repeating it in the header is the redundancy this layout was
+      redesigned to remove. So it stays hidden until the hero is scrolled past,
+      then fades in. On pages without a hero it is simply always visible.
+    */
+    }
+    <a
+      href={home}
+      data-home-link
+      class="qa-header-logo group flex items-center transition-opacity duration-300 ease-[var(--ease-brand)] hover:opacity-60"
+      aria-label={t('nav.home')}
+    >
+      <Logo height={34} eager />
     </a>
 
-    <nav class="hidden items-center gap-1 md:flex" aria-label={t('nav.home')}>
+    <nav
+      class="qa-header-pill qa-header-pill--nav hidden items-center gap-8 md:flex"
+      aria-label={t('nav.home')}
+    >
       {
         navItems.map((item) => (
           <a
             href={item.href}
-            class="rounded-md px-3 py-2 text-sm font-medium text-fg-muted transition-colors hover:bg-bg-subtle hover:text-fg"
+            class="qa-link text-sm font-medium text-fg-muted transition-colors hover:text-fg"
           >
             {item.label}
           </a>
@@ -48,7 +77,7 @@ const home = localePath('/', locale);
       }
     </nav>
 
-    <div class="flex items-center gap-2">
+    <div class="qa-header-pill flex items-center gap-1">
       <LocalePicker />
       <ThemeToggle />
 
@@ -58,27 +87,49 @@ const home = localePath('/', locale);
         aria-expanded="false"
         aria-controls="qa-mobile-nav"
         aria-label={t('nav.menu.open')}
-        class="inline-flex h-10 w-10 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-bg-subtle hover:text-fg md:hidden"
+        class="qa-icon-btn qa-menu-btn md:hidden"
       >
-        <Icon name="lucide:menu" class="h-5 w-5" data-menu-icon="open" aria-hidden="true" />
-        <Icon name="lucide:x" class="hidden h-5 w-5" data-menu-icon="close" aria-hidden="true" />
+        {
+          /*
+          Three lines rather than two swapped icons. Cross-fading a menu glyph
+          for an X is a cut; this rotates the same three strokes into the X and
+          back, so the control reads as one object changing state. It also
+          reverses correctly on close, which a fade never does.
+        */
+        }
+        <span class="qa-menu-icon" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
       </button>
     </div>
   </div>
+</header>
 
-  <nav
-    id="qa-mobile-nav"
-    hidden
-    class="border-t border-border bg-bg md:hidden"
-    aria-label={t('nav.home')}
-  >
-    <ul class="qa-container flex flex-col py-2">
+{
+  /*
+  A panel anchored under the toggle, not a full-width drawer — and deliberately
+  a SIBLING of <header>, not a child of it.
+
+  `backdrop-filter` samples the "backdrop root". An ancestor that is a
+  composited, position:fixed stacking context carrying its own backdrop-filter
+  — exactly what <header> is — left this panel with nothing to sample, so the
+  page rendered through it perfectly sharp. Nothing done inside the panel could
+  fix that, because the cause was above it in the tree.
+
+  Lifting it out puts <body> directly behind it, so its backdrop is the page.
+*/
+}
+<div id="qa-mobile-nav" data-mobile-nav class="qa-menu-panel md:hidden">
+  <nav aria-label={t('nav.home')}>
+    <ul class="flex flex-col p-2">
       {
         navItems.map((item) => (
           <li>
             <a
               href={item.href}
-              class="block rounded-md px-3 py-3 font-medium text-fg-muted transition-colors hover:bg-bg-subtle hover:text-fg"
+              class="block rounded-md px-3 py-2.5 text-sm font-medium text-fg-muted transition-colors duration-200 hover:bg-bg-subtle hover:text-fg"
             >
               {item.label}
             </a>
@@ -87,33 +138,463 @@ const home = localePath('/', locale);
       }
     </ul>
   </nav>
-</header>
+</div>
+
+<style>
+  /*
+   * No colour override while overlaying the hero.
+   *
+   * An earlier version forced white-on-dark here, because the hero was dark in
+   * both themes. Now the hero is toned to the theme, so the header simply
+   * inherits the normal tokens and is correct in both — one less special case,
+   * and light mode is genuinely light.
+   */
+
+  /*
+   * The header background fades out downward instead of ending on a border.
+   *
+   * A solid bar with a bottom rule draws a hard horizontal line across the
+   * page — visible in both themes, and especially wrong over a photograph. The
+   * `::before` layer carries the blur and a gradient that dissolves to nothing,
+   * so the bar has no edge at all: content passes under it and simply becomes
+   * legible, rather than being cut off by a line.
+   */
+  .qa-header::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    /*
+     * A short overhang: just enough for the fade to finish below the bar
+     * rather than at its edge. It was 2.25rem, which pushed the blurred band
+     * well down the page and read as a heavy strip rather than a header.
+     */
+    bottom: -1rem;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0;
+    /*
+     * Same translucency and blur as the pills, so the bar reads as the pills
+     * having grown together rather than as a different piece of chrome — with
+     * the bottom still dissolving instead of ending on a rule.
+     *
+     * `--qa-fade` rather than `--qa-bg`: it is registered with @property, so
+     * the gradient cross-fades on a theme change instead of snapping.
+     */
+    background: linear-gradient(
+      to bottom,
+      color-mix(in oklab, var(--qa-fade) 78%, transparent) 0%,
+      color-mix(in oklab, var(--qa-fade) 62%, transparent) 58%,
+      transparent 100%
+    );
+    /*
+     * Full strength across the bar itself; the fade happens entirely within
+     * the small overhang. The bar is 4.5rem and the overhang 1rem, so ~82% is
+     * exactly where the bar ends.
+     */
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 82%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 0%, #000 82%, transparent 100%);
+    /*
+     * The SAME token as the pills and the menu panel. This was hardcoded to
+     * blur(12px) while the shared veil was 20px, so the bar and the floating
+     * surfaces were visibly different materials.
+     */
+    backdrop-filter: var(--qa-veil-blur);
+    /* Keeps the layer promoted, so compositing does not silently drop the
+     * blur depending on what happens to be painted behind it. */
+    will-change: backdrop-filter;
+    transition: opacity 420ms var(--qa-ease);
+  }
+
+  /*
+   * Over the hero, the full-width bar is suppressed entirely.
+   *
+   * A bar spanning the viewport lays an opaque strip across the top of the
+   * photograph purely to make three links legible — most of it covering nothing
+   * at all. Instead each group gets its own small backdrop, sized to its
+   * content: the navigation in one, the theme toggle in another. The landscape
+   * stays visible between and around them.
+   *
+   * `data-scrolled` still drives it; the difference is only WHERE the backdrop
+   * is drawn. Once the hero is past, the pills dissolve and the real bar takes
+   * over, so the page ends up with a conventional header exactly when there is
+   * conventional content behind it.
+   */
+  /*
+   * THREE STATES, in order of appearance:
+   *
+   *   1. At rest on the hero  nothing but text and icons. No bar, no pills.
+   *                           The photograph is completely uninterrupted.
+   *   2. Scrolling the hero   each group gets its own pill, sized to its
+   *                           content, so links stay legible over moving
+   *                           imagery without laying a strip across the top.
+   *   3. Past the hero        the pills dissolve and a full-width bar takes
+   *                           over, because there is now ordinary content
+   *                           behind it rather than a photograph.
+   *
+   * The bar is deliberately NOT shown in state 2 — that was the version that
+   * cut a hard band across the landscape.
+   */
+  .qa-header::before {
+    opacity: 0;
+  }
+
+  .qa-header[data-overlay][data-past-hero]::before,
+  .qa-header:not([data-overlay])::before {
+    opacity: 1;
+  }
+
+  /*
+   * The padding is ALWAYS present, even when nothing is drawn.
+   *
+   * Adding it along with the background made every element inside shift
+   * sideways as the pill appeared — the links slid left, the toggle slid
+   * right. Layout must be settled from the first frame; only paint may change.
+   * The same rule is why the wordmark uses `visibility` rather than `display`:
+   * it keeps its slot while invisible, so nothing reflows when it fades in.
+   */
+  .qa-header-pill {
+    border-radius: var(--qa-radius-full);
+    background-color: transparent;
+    padding-inline: 1.35rem;
+    transition:
+      background-color 420ms var(--qa-ease),
+      backdrop-filter 420ms var(--qa-ease);
+  }
+
+  .qa-header-pill--nav {
+    padding-block: 0.6rem;
+  }
+
+  /* State 2 only: over the hero AND actually scrolled. Paint only. */
+  .qa-header[data-overlay][data-scrolled]:not([data-past-hero]) .qa-header-pill {
+    background-color: var(--qa-veil);
+    backdrop-filter: var(--qa-veil-blur);
+  }
+
+  /*
+   * Hide the header wordmark while the hero's own is on screen.
+   *
+   * This is gated on `data-past-hero`, NOT on `data-scrolled`. The two used to
+   * be the same flag, which forced a choice between a bare header floating over
+   * scrolling content and the wordmark appearing while the hero's was still
+   * visible. Splitting them lets the backdrop come in immediately while the
+   * wordmark waits for the hero to clear.
+   */
+  .qa-header[data-overlay]:not([data-past-hero]) .qa-header-logo {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-4px);
+  }
+
+  /* --- Menu icon -------------------------------------------------------
+   * Three strokes that rotate into an X. `--bar` keeps the geometry in one
+   * place: the outer strokes travel exactly to the centre line, so the two
+   * diagonals meet rather than crossing off-centre.
+   */
+  /*
+   * Geometry, all derived from three numbers so the two states cannot drift
+   * apart:
+   *
+   *   box   20 x 14   — a hamburger is wider than it is tall
+   *   bar   2px       — 1.5px straddled the device pixel grid and rendered
+   *                     unevenly, which is what made the strokes look ragged
+   *   gap   6px       — exactly half the box height minus the bar, so the
+   *                     outer strokes land dead on the centre line
+   *
+   * Every bar spans the full width with the same insets. Uneven left/right
+   * values were why the closed state looked clipped on one side.
+   */
+  .qa-menu-icon {
+    --w: 20px;
+    --h: 14px;
+    --bar: 2px;
+    --gap: 6px;
+    position: relative;
+    display: block;
+    width: var(--w);
+    height: var(--h);
+  }
+
+  .qa-menu-icon > span {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: var(--bar);
+    border-radius: 999px;
+    background-color: currentColor;
+    transition:
+      transform 340ms var(--qa-ease),
+      opacity 160ms var(--qa-ease);
+  }
+
+  /* Centres at 1px, 7px and 13px in a 14px box: 6px either side of centre. */
+  .qa-menu-icon > span:nth-child(1) {
+    top: 0;
+  }
+
+  .qa-menu-icon > span:nth-child(2) {
+    top: calc(50% - var(--bar) / 2);
+  }
+
+  .qa-menu-icon > span:nth-child(3) {
+    bottom: 0;
+  }
+
+  /*
+   * `scaleX` shortens the arms as they rotate. Without it the X keeps the
+   * hamburger's full 20px width, and once rotated its diagonal reaches ~14px
+   * in each direction — a cross noticeably larger than the icon it replaced,
+   * which is what made it look out of proportion.
+   */
+  .qa-menu-btn[aria-expanded='true'] .qa-menu-icon > span:nth-child(1) {
+    transform: translateY(var(--gap)) rotate(45deg) scaleX(0.82);
+  }
+
+  /* Collapsing the middle stroke inward rather than only fading it keeps the
+   * eye on the centre, where the X forms. */
+  .qa-menu-btn[aria-expanded='true'] .qa-menu-icon > span:nth-child(2) {
+    opacity: 0;
+    transform: scaleX(0.2);
+  }
+
+  .qa-menu-btn[aria-expanded='true'] .qa-menu-icon > span:nth-child(3) {
+    transform: translateY(calc(var(--gap) * -1)) rotate(-45deg) scaleX(0.82);
+  }
+
+  /* --- Menu panel ------------------------------------------------------ */
+  .qa-menu-panel {
+    /* `fixed`, because it is no longer inside the fixed header — see the
+     * comment on the markup for why it was moved out. Above the header so the
+     * panel is never clipped behind it. */
+    position: fixed;
+    z-index: 60;
+    top: calc(var(--qa-header-height) - 0.6rem);
+    right: 1.25rem;
+    width: min(13rem, calc(100vw - 2.5rem));
+    border-radius: var(--qa-radius-lg);
+    /*
+     * THE PANEL CARRIES NO `opacity`. That is the whole point of this block.
+     *
+     * `opacity` makes an element a backdrop root, and a backdrop root has
+     * nothing behind it to sample — so a `backdrop-filter` anywhere inside it,
+     * on the element itself OR on a pseudo-element, silently does nothing and
+     * the page shows through perfectly sharp. Moving the blur to ::before did
+     * not help precisely because ::before is still inside the opacity.
+     *
+     * So the reveal is built from properties that are safe to animate here:
+     *
+     *   backdrop-filter   0 -> 20px, which is itself animatable
+     *   background-color  transparent -> the veil
+     *   transform         a small grow (transform is NOT a backdrop root)
+     *   visibility        removes it from the tab order when closed
+     *
+     * The content fades separately, on the <nav> inside — opacity is harmless
+     * there because nothing under it needs a backdrop.
+     */
+    box-shadow: none;
+    background-color: transparent;
+    backdrop-filter: blur(0px) saturate(1);
+    will-change: backdrop-filter;
+    visibility: hidden;
+    /* Grows from the corner it belongs to, so it reads as coming out of the
+     * button rather than arriving from nowhere. */
+    transform: translateY(-6px) scale(0.96);
+    transform-origin: top right;
+    transition:
+      transform 240ms var(--qa-ease),
+      background-color 240ms var(--qa-ease),
+      backdrop-filter 240ms var(--qa-ease),
+      box-shadow 240ms var(--qa-ease),
+      visibility 240ms;
+  }
+
+  /* Content fades on its own layer, so the panel stays opacity-free. */
+  .qa-menu-panel > nav {
+    opacity: 0;
+    transition: opacity 200ms var(--qa-ease) 40ms;
+  }
+
+  .qa-menu-panel[data-open] > nav {
+    opacity: 1;
+  }
+
+  .qa-menu-panel[data-open] {
+    visibility: visible;
+    transform: none;
+    background-color: var(--qa-veil);
+    backdrop-filter: var(--qa-veil-blur);
+    box-shadow: var(--qa-shadow-lg);
+  }
+
+  /* `visibility` rather than `display` so the flex layout does not reflow when
+   * the wordmark appears, and so it leaves the tab order while invisible. */
+  .qa-header-logo {
+    transition:
+      opacity 300ms var(--ease-brand, ease),
+      transform 300ms var(--ease-brand, ease),
+      visibility 300ms;
+  }
+</style>
 
 <script>
+  // --- Scrolled state -----------------------------------------------------
+  const header = document.querySelector<HTMLElement>('[data-site-header]');
+
+  if (header) {
+    // TWO independent states, deliberately decoupled:
+    //
+    //   data-scrolled   the backdrop. Comes in as soon as the page moves at
+    //                   all, so navigation never floats bare over scrolling
+    //                   content — which is what made the links illegible as
+    //                   the hero passed beneath them.
+    //   data-past-hero  the wordmark. Waits until the hero has fully cleared,
+    //                   so the mark is never on screen twice.
+    //
+    // These used to be one flag, which forced a choice between those two bugs.
+    let atTop = true;
+    let menuOpen = false;
+
+    // The mobile menu also forces the backdrop on: an open panel over a
+    // transparent header would show the page through the links.
+    const syncBackdrop = () => header.toggleAttribute('data-scrolled', !atTop || menuOpen);
+
+    // Driven by IntersectionObserver rather than scroll listeners — the browser
+    // does this work off the main thread, so it cannot cause scroll jank.
+    const sentinel = document.createElement('div');
+    sentinel.setAttribute('aria-hidden', 'true');
+    sentinel.style.cssText = 'position:absolute;top:0;height:1px;width:1px;pointer-events:none';
+    document.body.prepend(sentinel);
+
+    new IntersectionObserver(
+      ([entry]) => {
+        atTop = entry?.isIntersecting ?? true;
+        syncBackdrop();
+      },
+      { threshold: 0 },
+    ).observe(sentinel);
+
+    const hero = document.querySelector('.qa-hero');
+
+    if (header.hasAttribute('data-overlay') && hero) {
+      // `rootMargin` accepts only px and %, never rem, so the header height is
+      // measured rather than read from the custom property.
+      const headerHeight = Math.round(header.getBoundingClientRect().height) || 72;
+
+      new IntersectionObserver(
+        ([entry]) => {
+          header.toggleAttribute('data-past-hero', !(entry?.isIntersecting ?? true));
+        },
+        { rootMargin: `-${headerHeight}px 0px 0px 0px`, threshold: 0 },
+      ).observe(hero);
+    }
+
+    // Header.astro owns both behaviours, so the menu reports its state here.
+    document.addEventListener('qa:menu', (event) => {
+      menuOpen = (event as CustomEvent<boolean>).detail;
+      syncBackdrop();
+    });
+  }
+
+  // --- Home link ----------------------------------------------------------
+  //
+  // The wordmark is a real <a href="/"> — correct for SEO, for middle-click,
+  // for "open in new tab", and for the day a second page exists. But when the
+  // visitor is ALREADY on that page, following it triggers a full document
+  // reload: the browser tears down and repaints, the theme boot script runs
+  // again, and the result is the flicker.
+  //
+  // So when the destination is the current page, cancel the navigation and
+  // scroll instead. The link keeps all its semantics; only the redundant
+  // reload is skipped.
+  document.querySelectorAll<HTMLAnchorElement>('[data-home-link]').forEach((link) => {
+    link.addEventListener('click', (event) => {
+      // Never hijack modified clicks — those are deliberate new-tab/window
+      // requests and must behave normally.
+      if (
+        event.defaultPrevented ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      )
+        return;
+      if (event.button !== 0) return;
+      if (link.pathname !== window.location.pathname) return;
+
+      event.preventDefault();
+
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' });
+
+      // Drop any '#section' left in the address bar so the URL matches what is
+      // now on screen. `replaceState` avoids adding a history entry, so Back
+      // still goes where the visitor expects.
+      if (window.location.hash) {
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+
+      // Move focus to the top of the document so keyboard and screen-reader
+      // users follow the scroll instead of being left mid-page.
+      const main = document.getElementById('main');
+      if (main) {
+        main.setAttribute('tabindex', '-1');
+        main.focus({ preventScroll: true });
+        main.removeAttribute('tabindex');
+      }
+    });
+  });
+
+  // --- Mobile menu --------------------------------------------------------
   const toggle = document.querySelector<HTMLButtonElement>('[data-menu-toggle]');
-  const nav = document.querySelector<HTMLElement>('#qa-mobile-nav');
+  const nav = document.querySelector<HTMLElement>('[data-mobile-nav]');
 
   if (toggle && nav) {
-    const openIcon = toggle.querySelector<SVGElement>('[data-menu-icon="open"]');
-    const closeIcon = toggle.querySelector<SVGElement>('[data-menu-icon="close"]');
+    const isOpen = () => nav.hasAttribute('data-open');
 
     const setOpen = (open: boolean) => {
-      nav.hidden = !open;
+      if (open === isOpen()) return;
+
+      nav.toggleAttribute('data-open', open);
       toggle.setAttribute('aria-expanded', String(open));
-      openIcon?.classList.toggle('hidden', open);
-      closeIcon?.classList.toggle('hidden', !open);
+      // Tells the scroll handler above to keep the header backdrop up while
+      // the panel is on screen.
+      document.dispatchEvent(new CustomEvent('qa:menu', { detail: open }));
+
+      if (open) {
+        // Move into the panel so keyboard users land on the first item.
+        nav.querySelector<HTMLAnchorElement>('a')?.focus({ preventScroll: true });
+      } else if (nav.contains(document.activeElement)) {
+        // Only reclaim focus if it is still inside the panel being closed —
+        // otherwise clicking elsewhere on the page would yank it back.
+        toggle.focus({ preventScroll: true });
+      }
     };
 
-    // `hidden` is typed `string | boolean` (it also accepts "until-found"),
-    // so normalise before flipping it.
-    toggle.addEventListener('click', () => setOpen(Boolean(nav.hidden)));
+    toggle.addEventListener('click', () => setOpen(!isOpen()));
 
     // Close after following an in-page anchor.
     nav.addEventListener('click', (event) => {
       if ((event.target as HTMLElement).closest('a')) setOpen(false);
     });
 
-    // Close when resizing up to the desktop breakpoint.
+    /*
+     * Click outside closes it.
+     *
+     * `pointerdown` rather than `click`: it fires before focus moves, so the
+     * panel is already closing as the press lands rather than a frame later.
+     * The toggle is excluded so its own handler is not immediately undone.
+     */
+    document.addEventListener('pointerdown', (event) => {
+      if (!isOpen()) return;
+      const target = event.target as Node;
+      if (nav.contains(target) || toggle.contains(target)) return;
+      setOpen(false);
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') setOpen(false);
+    });
+
     window.matchMedia('(min-width: 768px)').addEventListener('change', (event) => {
       if (event.matches) setOpen(false);
     });

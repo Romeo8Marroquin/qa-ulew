@@ -5,6 +5,11 @@
  * Default behaviour is "follow the system". Once the user clicks, their choice
  * is stored in localStorage and wins from then on. The no-flash resolution
  * happens in the inline script in BaseLayout, before first paint.
+ *
+ * Both icons are always in the DOM, stacked, and cross-fade with a short
+ * rotation. Swapping `hidden` classes gives an instant, jarring change; the
+ * rotation makes the two states feel like one object turning over, which is
+ * also a clearer signal that the control did something.
  */
 import { Icon } from 'astro-icon/components';
 
@@ -17,25 +22,104 @@ const t = useTranslations(isLocale(Astro.currentLocale) ? Astro.currentLocale : 
 <button
   type="button"
   data-theme-toggle
-  class="inline-flex h-10 w-10 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-bg-subtle hover:text-fg"
+  class="qa-icon-btn qa-theme-toggle"
   aria-label={t('theme.toggle')}
   title={t('theme.toggle')}
 >
-  <Icon name="lucide:sun" class="hidden h-5 w-5 dark:block" aria-hidden="true" />
-  <Icon name="lucide:moon" class="block h-5 w-5 dark:hidden" aria-hidden="true" />
+  <span class="qa-theme-icons" aria-hidden="true">
+    <Icon name="lucide:sun" class="qa-theme-sun h-[1.15rem] w-[1.15rem]" />
+    <Icon name="lucide:moon" class="qa-theme-moon h-[1.15rem] w-[1.15rem]" />
+  </span>
 </button>
+
+<style>
+  .qa-theme-icons {
+    position: relative;
+    display: block;
+    height: 1.15rem;
+    width: 1.15rem;
+  }
+
+  .qa-theme-icons :global(svg) {
+    position: absolute;
+    inset: 0;
+    transition:
+      opacity var(--qa-dur) var(--qa-ease),
+      transform var(--qa-dur) var(--qa-ease);
+  }
+
+  /* Light theme shows the moon: the icon advertises what clicking will DO,
+   * not what is currently active. */
+  .qa-theme-icons :global(.qa-theme-sun) {
+    opacity: 0;
+    transform: rotate(-90deg) scale(0.6);
+  }
+
+  .qa-theme-icons :global(.qa-theme-moon) {
+    opacity: 1;
+    transform: rotate(0) scale(1);
+  }
+
+  :global([data-theme='dark']) .qa-theme-icons :global(.qa-theme-sun) {
+    opacity: 1;
+    transform: rotate(0) scale(1);
+  }
+
+  :global([data-theme='dark']) .qa-theme-icons :global(.qa-theme-moon) {
+    opacity: 0;
+    transform: rotate(90deg) scale(0.6);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .qa-theme-icons :global(svg) {
+      transition: opacity 0.01ms;
+      transform: none !important;
+    }
+  }
+</style>
 
 <script>
   const STORAGE_KEY = 'qa-theme';
 
   type Theme = 'light' | 'dark';
 
-  const apply = (theme: Theme) => {
-    document.documentElement.dataset.theme = theme;
-  };
+  const root = document.documentElement;
 
-  const current = (): Theme =>
-    document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+  // Must match the 200ms fade-out in Hero.astro's `[data-theme-shift]` rule.
+  const FADE_OUT = 200;
+
+  const current = (): Theme => (root.dataset.theme === 'dark' ? 'dark' : 'light');
+
+  const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  let pending: number | undefined;
+
+  /**
+   * Swap the theme.
+   *
+   * A straight cross-fade of the hero overlay passes through mid-grey, washing
+   * the photograph out at the midpoint. Instead the overlay fades out, the
+   * tokens swap while it is invisible, and the new one fades in — the viewer
+   * sees the bare photograph for an instant rather than a muddy blend.
+   *
+   * The attribute goes on <html> so the CSS can react; the flip happens on a
+   * timer rather than a transitionend, because transitionend does not fire when
+   * the element is off-screen or when motion is reduced.
+   */
+  const apply = (theme: Theme) => {
+    window.clearTimeout(pending);
+
+    if (reducedMotion()) {
+      root.dataset.theme = theme;
+      return;
+    }
+
+    root.setAttribute('data-theme-shift', '');
+    pending = window.setTimeout(() => {
+      root.dataset.theme = theme;
+      root.removeAttribute('data-theme-shift');
+    }, FADE_OUT);
+  };
 
   document.querySelectorAll<HTMLButtonElement>('[data-theme-toggle]').forEach((button) => {
     button.addEventListener('click', () => {

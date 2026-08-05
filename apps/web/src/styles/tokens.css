@@ -1,93 +1,231 @@
-/**
- * DESIGN TOKENS — the only file that should change when the real brand lands.
+﻿/**
+ * DESIGN TOKENS — the single source of truth for the visual identity.
  *
- * Every colour, font and radius used anywhere in the site resolves back to a
- * variable defined here. When the designs, logo, palette and fonts arrive,
- * replacing the values below re-skins the entire site; no component changes.
+ * Derived from the channel's brand assets (assets/reference/): a hand-lettered
+ * black wordmark and black-and-white documentary photography of the Guatemalan
+ * highlands.
  *
- * All current values are NEUTRAL PLACEHOLDERS chosen only to be legible and
- * accessible. They are not a brand proposal.
+ * The identity is STRICTLY MONOCHROME. There is no brand colour, and that is a
+ * deliberate strength, not a gap — it is what makes the look distinctive and
+ * lets the photography carry the emotion. Do not introduce a colour accent
+ * without a real reason; it would fight the logo and the imagery.
+ *
+ * The neutrals are very slightly WARM (a trace of red/yellow rather than pure
+ * grey). Against B&W photography this reads as paper and film rather than as
+ * screen chrome, and it keeps large light surfaces from feeling clinical.
  *
  * Light is the default. `[data-theme='dark']` is set on <html> by the inline
- * script in BaseLayout before first paint — it resolves the user's saved
- * preference, or the system's `prefers-color-scheme` when there is none.
+ * script in BaseLayout before first paint.
  */
 
+/**
+ * Registered custom properties.
+ *
+ * `background-image` is not an animatable CSS property, so a gradient built
+ * from raw values repaints instantly when the theme flips — which is what made
+ * the hero scrim snap while everything around it cross-faded.
+ *
+ * Registering these with `@property` and a `<color>` syntax makes the browser
+ * treat them as interpolatable. The gradient still cannot animate, but the
+ * COLOURS feeding it can, and the gradient repaints each frame as they move.
+ * Transitioning them on <html> (below) is what actually drives it.
+ *
+ * Browsers without `@property` fall back to an instant change — the previous
+ * behaviour, not a broken one.
+ */
+@property --qa-hero-scrim {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: rgb(251 250 248 / 0.6);
+}
+
+@property --qa-hero-scrim-edge {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: rgb(251 250 248 / 0.06);
+}
+
+@property --qa-hero-photo-opacity {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0.62;
+}
+
+/**
+ * The colour the hero feathers into at its top and bottom edges.
+ *
+ * This is the page background, but it needs its own registered token rather
+ * than reading `--qa-bg` directly: an unregistered custom property inside a
+ * gradient changes in a single frame, so the top and bottom bands snapped into
+ * place while the rest of the scrim cross-faded — a hard edge appearing out of
+ * nowhere mid-transition.
+ */
+@property --qa-fade {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #fbfaf8;
+}
+
 :root {
-  /* --- Typography ---------------------------------------------------- */
-  /* TODO: swap for the brand typefaces once chosen (see docs/design.md). */
+  /* --- Typography -----------------------------------------------------
+   * Fraunces: an old-style serif with soft, slightly irregular forms. Chosen
+   * to echo the hand-lettered logo without imitating it — the logo is custom
+   * lettering and any lookalike font would read as a cheap copy.
+   * Inter: neutral and highly legible, for everything that must be read
+   * rather than looked at.
+   */
   --qa-font-sans:
-    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    'Noto Sans', sans-serif;
-  --qa-font-display: var(--qa-font-sans);
+    'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --qa-font-display: 'Fraunces Variable', ui-serif, Georgia, 'Times New Roman', serif;
   --qa-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
 
-  /* --- Radii & elevation --------------------------------------------- */
-  --qa-radius-sm: 0.375rem;
-  --qa-radius-md: 0.625rem;
-  --qa-radius-lg: 1rem;
+  /* --- Radii ----------------------------------------------------------
+   * Restrained. The logo is organic and hand-drawn; heavily rounded UI would
+   * compete with it. Near-square edges let the mark be the soft thing.
+   */
+  --qa-radius-sm: 0.25rem;
+  --qa-radius-md: 0.375rem;
+  --qa-radius-lg: 0.75rem;
   --qa-radius-full: 9999px;
 
-  --qa-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --qa-shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.1);
-  --qa-shadow-lg: 0 12px 32px -8px rgb(0 0 0 / 0.18);
+  /* --- Elevation ------------------------------------------------------
+   * Monochrome design has no colour to separate layers, so shadows are soft
+   * and wide rather than tight and dark.
+   */
+  --qa-shadow-sm: 0 1px 2px 0 rgb(15 14 12 / 0.06);
+  --qa-shadow-md: 0 6px 20px -6px rgb(15 14 12 / 0.14);
+  --qa-shadow-lg: 0 20px 48px -16px rgb(15 14 12 / 0.24);
 
   /* --- Layout --------------------------------------------------------- */
-  --qa-container: 72rem;
-  --qa-header-height: 4rem;
+  --qa-container: 74rem;
+  --qa-header-height: 4.5rem;
 
-  /* --- Motion --------------------------------------------------------- */
-  --qa-transition: 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  /* --- Motion ---------------------------------------------------------
+   * One easing curve everywhere. Consistency in timing is most of what makes
+   * an interface feel "smooth"; varying curves per component reads as noise.
+   * `--qa-ease` is a gentle decelerate — natural for things entering view.
+   */
+  --qa-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --qa-ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
+  --qa-dur-fast: 160ms;
+  --qa-dur: 280ms;
+  --qa-dur-slow: 620ms;
 
-  /* --- Colour: LIGHT (default) ---------------------------------------- */
-  /* Semantic names only. Never reference a raw hex outside this file. */
-  --qa-bg: #ffffff;
-  --qa-bg-subtle: #f6f7f8;
+  /* --- Colour: LIGHT (default) ----------------------------------------
+   * Warm off-white paper, near-black ink. Never pure #fff on #000 — the small
+   * amount of warmth is what separates "editorial" from "default browser".
+   */
+  --qa-bg: #fbfaf8;
+  --qa-bg-subtle: #f2f0ec;
   --qa-surface: #ffffff;
   --qa-surface-raised: #ffffff;
 
-  --qa-fg: #14181c;
-  --qa-fg-muted: #5b666f;
-  --qa-fg-subtle: #8a939b;
+  --qa-fg: #16150f;
+  --qa-fg-muted: #5a574e;
+  --qa-fg-subtle: #8a8478;
 
-  --qa-border: #e3e6e9;
-  --qa-border-strong: #c9cfd4;
+  --qa-border: #e2ded6;
+  --qa-border-strong: #c8c3b8;
 
-  /* Placeholder brand colour. TODO: replace with the real palette. */
-  --qa-brand: #1f7a53;
-  --qa-brand-hover: #196745;
-  --qa-brand-fg: #ffffff;
-  --qa-accent: #c2701c;
-  --qa-accent-fg: #ffffff;
+  /* In a monochrome system the "brand" colour is simply ink. Buttons and
+   * emphasis are pure contrast, exactly like the logo. */
+  --qa-brand: #16150f;
+  --qa-brand-hover: #35322a;
+  --qa-brand-fg: #fbfaf8;
+  --qa-accent: #16150f;
+  --qa-accent-fg: #fbfaf8;
 
-  --qa-focus: #1f7a53;
-  --qa-overlay: rgb(0 0 0 / 0.55);
+  --qa-focus: #16150f;
+  --qa-overlay: rgb(12 11 9 / 0.62);
+
+  /* Scrollbar. The default chrome is the loudest unstyled element on a
+   * monochrome page, and it does not follow the theme. */
+  --qa-scroll-thumb: rgb(22 21 15 / 0.28);
+  --qa-scroll-thumb-hover: rgb(22 21 15 / 0.5);
+
+  /**
+   * The floating-surface veil: header pills, the mobile menu panel.
+   *
+   * One token so those two can never drift apart. They read as the same
+   * material precisely because they are — the panel is the pill, grown.
+   *
+   * The blur is what makes this work at 70%: it is doing the legibility work,
+   * so the surface can stay light enough to feel like glass rather than a
+   * painted slab. Raising the opacity instead was tried and looked like a hole
+   * cut in the page.
+   */
+  --qa-veil: color-mix(in oklab, var(--qa-bg) 70%, transparent);
+  --qa-veil-blur: blur(13px) saturate(1.08);
+
+  /* Which of the two supplied wordmarks is shown. The brand ships black-ink
+   * and white-ink artwork, so neither is synthesised with a CSS filter. */
+  --qa-logo-ink: block;
+  --qa-logo-paper: none;
+
+  /* --- Hero -----------------------------------------------------------
+   * The photograph is toned TO the theme: light mode light, dark mode dark.
+   *
+   * It is NOT inverted in light mode. An earlier version was, on the theory
+   * that a negative would read as a darkroom treatment — in practice it
+   * produced a near-white ghost on near-white paper that was invisible. A
+   * grey photograph on paper is simply how a printed photograph looks.
+   *
+   * The scrim is densest in the centre, where the type sits, and clears toward
+   * the edges so the photograph is actually visible. Doing it the other way
+   * round — which the first version did — hides the image exactly where there
+   * is nothing to protect.
+   */
+  --qa-fade: #fbfaf8;
+  --qa-hero-scrim: rgb(251 250 248 / 0.6);
+  --qa-hero-scrim-edge: rgb(251 250 248 / 0.06);
+  --qa-hero-photo-opacity: 0.62;
+  --qa-hero-photo-filter: grayscale(1) contrast(1.04) brightness(1.02);
 
   color-scheme: light;
 }
 
-/* --- Colour: DARK ----------------------------------------------------- */
+/* --- Colour: DARK ------------------------------------------------------
+ * Not an inversion. The dark surface is a warm near-black, matching the
+ * shadows in the channel's photography rather than a neutral charcoal.
+ */
 [data-theme='dark'] {
-  --qa-bg: #0d1116;
-  --qa-bg-subtle: #141a21;
-  --qa-surface: #141a21;
-  --qa-surface-raised: #1b232c;
+  --qa-bg: #0e0d0b;
+  --qa-bg-subtle: #16150f;
+  --qa-surface: #16150f;
+  --qa-surface-raised: #1e1c16;
 
-  --qa-fg: #e9edf1;
-  --qa-fg-muted: #a2adb8;
-  --qa-fg-subtle: #6f7d89;
+  --qa-fg: #f4f2ed;
+  --qa-fg-muted: #a8a396;
+  --qa-fg-subtle: #77726a;
 
-  --qa-border: #262f39;
-  --qa-border-strong: #3a4552;
+  --qa-border: #2a2822;
+  --qa-border-strong: #423f37;
 
-  --qa-brand: #4fbc8b;
-  --qa-brand-hover: #6bcda0;
-  --qa-brand-fg: #08120d;
-  --qa-accent: #e0954a;
-  --qa-accent-fg: #1a1206;
+  --qa-brand: #f4f2ed;
+  --qa-brand-hover: #ffffff;
+  --qa-brand-fg: #0e0d0b;
+  --qa-accent: #f4f2ed;
+  --qa-accent-fg: #0e0d0b;
 
-  --qa-focus: #4fbc8b;
-  --qa-overlay: rgb(0 0 0 / 0.7);
+  --qa-focus: #f4f2ed;
+  --qa-overlay: rgb(6 6 5 / 0.74);
+
+  --qa-scroll-thumb: rgb(244 242 237 / 0.22);
+  --qa-scroll-thumb-hover: rgb(244 242 237 / 0.42);
+
+  --qa-veil: color-mix(in oklab, var(--qa-bg) 70%, transparent);
+  --qa-veil-blur: blur(13px) saturate(1.08);
+
+  --qa-logo-ink: none;
+  --qa-logo-paper: block;
+
+  /* Was so dark the landscape was barely perceptible. The photograph now
+   * carries most of the frame and the scrim only protects the type. */
+  --qa-fade: #0e0d0b;
+  --qa-hero-scrim: rgb(10 9 8 / 0.5);
+  --qa-hero-scrim-edge: rgb(10 9 8 / 0.08);
+  --qa-hero-photo-opacity: 0.86;
+  --qa-hero-photo-filter: grayscale(1) contrast(1.12) brightness(0.82);
 
   color-scheme: dark;
 }

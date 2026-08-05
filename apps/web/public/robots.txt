@@ -1,4 +1,13 @@
+# Everything here is public and meant to be found.
 User-agent: *
 Allow: /
 
+# Astro generates this at build time via @astrojs/sitemap. It must be an
+# absolute URL — crawlers do not resolve a relative one.
 Sitemap: https://qa-ulew.tv/sitemap-index.xml
+
+# NOTE: preview deployments are kept out of search by a `noindex` meta tag,
+# not from here. robots.txt only controls crawling, not indexing: a page
+# blocked here can still be listed if something links to it, and because the
+# crawler is not allowed to read it, it cannot see a `noindex` either. The meta
+# tag is the only reliable way to keep a URL out of results.

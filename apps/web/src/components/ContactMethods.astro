@@ -1,0 +1,158 @@
+---
+/**
+ * Contact details rendered as actions rather than as text to copy by hand.
+ *
+ * Every entry is a real link with the right scheme, which is what makes this
+ * work on mobile without any user-agent sniffing — the OS owns these:
+ *
+ *   tel:     opens the dialler with the number filled in
+ *   mailto:  opens the default mail app, composing to the address
+ *   m.me     deep-links into the Messenger app, falling back to the web
+ *   maps URL opens the preferred map app
+ *
+ * `rel="noopener noreferrer"` on the external ones: `noopener` stops the opened
+ * page reaching back through `window.opener`, `noreferrer` withholds the
+ * referrer. Both are free and there is no reason to leak either.
+ */
+import { Icon } from 'astro-icon/components';
+
+import { CONTACT } from '~/config/site';
+import { DEFAULT_LOCALE, isLocale } from '~/i18n/config';
+import { useTranslations } from '~/i18n/utils';
+
+const t = useTranslations(isLocale(Astro.currentLocale) ? Astro.currentLocale : DEFAULT_LOCALE);
+
+interface Method {
+  icon: string;
+  label: string;
+  value: string;
+  href: string;
+  external: boolean;
+}
+
+const methods: Method[] = [
+  {
+    icon: 'lucide:phone',
+    label: t('contact.phone.label'),
+    value: CONTACT.phoneDisplay,
+    // E.164 in the href so it dials correctly from any country, while the
+    // visible value stays in local Guatemalan formatting.
+    href: `tel:${CONTACT.phone}`,
+    external: false,
+  },
+  {
+    icon: 'lucide:mail',
+    label: t('contact.email.label'),
+    value: CONTACT.email,
+    href: `mailto:${CONTACT.email}`,
+    external: false,
+  },
+  {
+    icon: 'simple-icons:messenger',
+    label: t('contact.messenger.label'),
+    value: t('contact.messenger.action'),
+    href: `https://m.me/100087979325982`,
+    external: true,
+  },
+  {
+    icon: 'lucide:map-pin',
+    label: t('contact.address.label'),
+    value: CONTACT.address,
+    href: CONTACT.mapUrl,
+    external: true,
+  },
+];
+---
+
+{
+  /*
+  Rules, not boxes.
+
+  Boxed cells put a container around every line and turned the section into a
+  spreadsheet. A single hairline under each row is enough separation, and it
+  matches the rest of the page — which uses thin rules under headings and
+  between sections rather than panels. The rule slides out of the way on hover,
+  replaced by a mark in the page's ink colour, so the row responds without
+  needing a filled background.
+*/
+}
+<ul class="qa-contact grid sm:grid-cols-2 sm:gap-x-14">
+  {
+    methods.map((method) => (
+      <li>
+        <a
+          href={method.href}
+          target={method.external ? '_blank' : undefined}
+          rel={method.external ? 'noopener noreferrer' : undefined}
+          class="qa-contact-row group flex items-center gap-5 py-6"
+        >
+          <span class="shrink-0 text-fg-subtle transition-colors duration-300 ease-[var(--ease-brand)] group-hover:text-fg">
+            <Icon name={method.icon} class="h-[1.4rem] w-[1.4rem]" aria-hidden="true" />
+          </span>
+
+          <span class="min-w-0 flex-1">
+            <span class="block text-[0.66rem] font-medium tracking-[0.2em] text-fg-subtle uppercase">
+              {method.label}
+            </span>
+            <span class="mt-1.5 block truncate text-[1.05rem] text-fg">{method.value}</span>
+          </span>
+
+          <Icon
+            name="lucide:arrow-up-right"
+            class="h-4 w-4 shrink-0 -translate-x-1 text-fg-subtle opacity-0 transition-all duration-300 ease-[var(--ease-brand)] group-hover:translate-x-0 group-hover:opacity-100"
+            aria-hidden="true"
+          />
+        </a>
+      </li>
+    ))
+  }
+</ul>
+
+<style>
+  .qa-contact-row {
+    position: relative;
+  }
+
+  /* The resting hairline. */
+  .qa-contact-row::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 1px;
+    background-color: var(--qa-border);
+  }
+
+  /* Drawn over it on hover, in ink, from the left. */
+  .qa-contact-row::before {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 1;
+    height: 1px;
+    background-color: var(--qa-fg);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 420ms var(--qa-ease);
+  }
+
+  .qa-contact-row:hover::before,
+  .qa-contact-row:focus-visible::before {
+    transform: scaleX(1);
+  }
+
+  /* On two columns the last row of each column drops its rule, so the block
+   * ends cleanly instead of on a stray line. */
+  @media (min-width: 640px) {
+    .qa-contact > li:nth-last-child(-n + 2) .qa-contact-row::after {
+      display: none;
+    }
+  }
+
+  @media (max-width: 639px) {
+    .qa-contact > li:last-child .qa-contact-row::after {
+      display: none;
+    }
+  }
+</style>

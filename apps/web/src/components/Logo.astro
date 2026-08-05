@@ -1,0 +1,79 @@
+---
+/**
+ * The channel wordmark, without its baked-in tagline.
+ *
+ * The supplied artwork sets "Conectando con nuestra cultura" very small inside
+ * the mark. It reads at hero size and collapses into a smudge everywhere else,
+ * so `scripts/prepare-logo.mjs` strips it and the tagline is rendered as live
+ * text instead — legible at any size, and translatable.
+ *
+ * Two artworks, black ink and white ink, rather than one file inverted with a
+ * CSS filter: the brand ships both, so neither is synthesised. Only one is
+ * displayed; `.qa-on-dark` forces the white one regardless of page theme.
+ */
+import { Image } from 'astro:assets';
+
+import markBlack from '~/assets/brand/logo-mark-black.png';
+import markWhite from '~/assets/brand/logo-mark-white.png';
+import fullBlack from '~/assets/brand/logo-full-black.png';
+import fullWhite from '~/assets/brand/logo-full-white.png';
+import { SITE } from '~/config/site';
+
+interface Props {
+  /**
+   * `full` is the artwork exactly as supplied, tagline and "TV" included —
+   * for the hero, where every detail is legible.
+   * `mark` drops both, for the header and footer where they turn to mush.
+   */
+  variant?: 'full' | 'mark';
+  /** Rendered height in px. Ignored when `fluid` is set. */
+  height?: number;
+  /**
+   * Let the caller's own CSS set the height — used by the hero, which scales
+   * the mark with `clamp()`. Without this the inline height below would win on
+   * specificity and pin it to a fixed size.
+   */
+  fluid?: boolean;
+  class?: string;
+  /** Set on above-the-fold marks so they are not lazy-loaded. */
+  eager?: boolean;
+}
+
+const {
+  variant = 'mark',
+  height = 40,
+  fluid = false,
+  class: className = '',
+  eager = false,
+} = Astro.props;
+
+const logoBlack = variant === 'full' ? fullBlack : markBlack;
+const logoWhite = variant === 'full' ? fullWhite : markWhite;
+
+// The mark is trimmed after the tagline and TV are erased, so the two variants
+// have different proportions. Taking the ratio from the asset keeps the box
+// matched to the artwork in both cases.
+const ASPECT = logoBlack.width / logoBlack.height;
+const intrinsicHeight = fluid ? 168 : height;
+const intrinsicWidth = Math.round(intrinsicHeight * ASPECT);
+
+const shared = {
+  width: intrinsicWidth,
+  height: intrinsicHeight,
+  densities: [1, 2],
+  loading: eager ? ('eager' as const) : ('lazy' as const),
+  decoding: 'async' as const,
+  class: 'h-full w-auto object-contain',
+};
+---
+
+<span class:list={['inline-block', className]} style={fluid ? undefined : `height:${height}px`}>
+  <Image src={logoBlack} alt={SITE.name} {...shared} class:list={[shared.class, 'qa-logo-ink']} />
+  <Image
+    src={logoWhite}
+    alt=""
+    aria-hidden="true"
+    {...shared}
+    class:list={[shared.class, 'qa-logo-paper']}
+  />
+</span>

@@ -39,7 +39,15 @@ export default defineConfig({
     // `simple-icons` covers social brand marks, `lucide` the UI glyphs.
     icon({
       include: {
-        'simple-icons': ['youtube', 'facebook', 'tiktok', 'instagram', 'whatsapp', 'x'],
+        'simple-icons': [
+          'youtube',
+          'facebook',
+          'messenger',
+          'tiktok',
+          'instagram',
+          'whatsapp',
+          'x',
+        ],
         lucide: [
           'sun',
           'moon',
@@ -47,7 +55,10 @@ export default defineConfig({
           'x',
           'play',
           'arrow-right',
+          'arrow-up-right',
           'mail',
+          'phone',
+          'map-pin',
           'languages',
           'external-link',
         ],

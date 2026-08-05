@@ -1,0 +1,246 @@
+﻿---
+/**
+ * Channel ident.
+ *
+ * The archival landscape sits BEHIND the page rather than on top of it: a
+ * scrim in the page background colour is laid over the photograph, so the hero
+ * is light in light mode and dark in dark mode. Both remain monochrome, which
+ * is what the identity asks for — an always-dark hero made light mode a lie.
+ *
+ * The photograph is NOT inverted in light mode. An earlier version was, on the
+ * theory that a negative would read as a darkroom treatment; in practice it
+ * produced a near-white ghost on near-white paper that was invisible. A grey
+ * photograph on paper is simply what a printed photograph looks like.
+ *
+ * The scrim is densest behind the type and clears toward the edges, so the
+ * image is genuinely visible where there is nothing to protect. The first
+ * version had it the other way round and hid the photograph completely.
+ *
+ * NOTE: the source is 799x483, so it is upscaled on desktop. A higher-
+ * resolution scan would let it be used far more boldly than this.
+ */
+import { Icon } from 'astro-icon/components';
+import { Image } from 'astro:assets';
+
+import Logo from '~/components/Logo.astro';
+import SocialLinks from '~/components/SocialLinks.astro';
+import landscape from '~/assets/brand/landscape.jpg';
+import { SITE, activeSocialLinks } from '~/config/site';
+import { DEFAULT_LOCALE, isLocale } from '~/i18n/config';
+import { useTranslations } from '~/i18n/utils';
+
+const t = useTranslations(isLocale(Astro.currentLocale) ? Astro.currentLocale : DEFAULT_LOCALE);
+const hasSocial = activeSocialLinks().length > 0;
+---
+
+{
+  /*
+  `min-h-svh` — the *small* viewport unit — so a mobile browser with a
+  retracting URL bar cannot leave a sliver of the next section showing.
+*/
+}
+<section class="qa-hero qa-grain relative isolate flex min-h-svh flex-col overflow-hidden bg-bg">
+  {/* --- Photograph ------------------------------------------------------- */}
+  <div class="absolute inset-0 -z-20 overflow-hidden" aria-hidden="true">
+    <Image
+      src={landscape}
+      alt=""
+      widths={[799, 1200, 1600]}
+      sizes="100vw"
+      loading="eager"
+      fetchpriority="high"
+      quality={78}
+      class="qa-hero-photo h-full w-full object-cover"
+    />
+  </div>
+
+  {
+    /* Scrim in the page background colour, densest at the edges so the
+      composition vignettes into the surrounding sections. */
+  }
+  <div class="qa-hero-scrim absolute inset-0 -z-10" aria-hidden="true"></div>
+
+  {/* --- Content ---------------------------------------------------------- */}
+  <div
+    class="qa-container relative z-10 flex flex-1 flex-col items-center justify-center py-24 text-center sm:py-28"
+  >
+    {
+      /*
+      The page's <h1>. The wordmark carries the brand far better than the name
+      set in a typeface it was never drawn in; the image's alt text supplies
+      the accessible heading, so screen readers and search engines still get a
+      real level-one heading.
+
+      Sized in `clamp()` rather than breakpoints so it scales continuously —
+      there is no width at which it looks stranded between two steps.
+    */
+    }
+    {
+      /*
+      The FULL artwork here — tagline and "TV" included. At this size every
+      detail reads, and it is the mark as the channel actually uses it. The
+      header and footer get the reduced variant, where those two elements would
+      collapse into specks.
+    */
+    }
+    <h1 data-hero-item class="w-full">
+      <Logo variant="full" eager fluid class="qa-hero-logo mx-auto" />
+      <span class="qa-sr-only">{`${SITE.name} - ${t('site.tagline')}`}</span>
+    </h1>
+
+    <p
+      data-hero-item
+      style="animation-delay:180ms"
+      class="mt-10 max-w-xl text-base leading-relaxed text-balance text-fg-muted sm:mt-12 sm:text-lg"
+    >
+      {t('hero.subtitle')}
+    </p>
+
+    <div
+      data-hero-item
+      style="animation-delay:320ms"
+      class="mt-9 flex w-full flex-col items-stretch gap-3 sm:mt-11 sm:w-auto sm:flex-row sm:items-center sm:justify-center"
+    >
+      <a href="#videos" class="qa-btn qa-btn-solid group">
+        {t('hero.cta.primary')}
+        <Icon
+          name="lucide:arrow-right"
+          class="h-4 w-4 transition-transform duration-300 ease-[var(--ease-brand)] group-hover:translate-x-1"
+          aria-hidden="true"
+        />
+      </a>
+      <a href="#about" class="qa-btn qa-btn-outline">{t('hero.cta.secondary')}</a>
+    </div>
+
+    {
+      hasSocial && (
+        <div data-hero-item style="animation-delay:440ms" class="mt-12 sm:mt-14">
+          <SocialLinks size="sm" />
+        </div>
+      )
+    }
+  </div>
+
+  {/* Scroll cue. Decoration, so hidden from assistive tech. */}
+  <div class="relative z-10 flex justify-center pb-8 sm:pb-10" aria-hidden="true">
+    <span class="qa-scroll-cue block h-9 w-px origin-top"></span>
+  </div>
+</section>
+
+<style>
+  /*
+   * `filter` must be transitioned explicitly — the global theme transition
+   * covers background-color, border-color, color, fill and opacity, but not
+   * filter. Without it the brightness jumped in a single frame while the
+   * opacity eased, so the photograph snapped to a new exposure and only then
+   * faded. Both filters use the same functions in the same order, so they
+   * interpolate cleanly. The transition itself is declared further down,
+   * alongside the scrim, since the two must move together.
+   */
+  .qa-hero-photo {
+    opacity: var(--qa-hero-photo-opacity);
+    filter: var(--qa-hero-photo-filter);
+  }
+
+  /*
+   * Densest behind the type, clearing toward the edges so the photograph is
+   * genuinely visible. The linear layer on top feathers the very top and
+   * bottom into the neighbouring sections, so the hero has no hard seam
+   * without needing a border.
+   */
+  .qa-hero-scrim {
+    background:
+      linear-gradient(
+        to bottom,
+        var(--qa-fade) 0%,
+        transparent 18%,
+        transparent 82%,
+        var(--qa-fade) 100%
+      ),
+      radial-gradient(
+        95% 70% at 50% 46%,
+        var(--qa-hero-scrim) 0%,
+        var(--qa-hero-scrim) 34%,
+        var(--qa-hero-scrim-edge) 100%
+      );
+  }
+
+  /*
+   * Theme change: lift the tint off, swap it, lay the new one down.
+   *
+   * ONLY the scrim fades. An earlier version faded the photograph out as well,
+   * which meant the midpoint showed a flat panel of page colour — the whole
+   * hero went solid, then changed, then uncovered again. Leaving the photo in
+   * place means what you see mid-transition is simply the untinted
+   * photograph, which is what is actually underneath.
+   *
+   * A straight cross-fade from a white tint to a black one is the other wrong
+   * answer: it passes through mid-grey and washes the image out.
+   *
+   * `ThemeToggle` sets `data-theme-shift`, flips the theme at the midpoint, and
+   * clears it. Both halves are short so the pair reads as one gesture.
+   */
+  .qa-hero-scrim {
+    transition: opacity 320ms var(--qa-ease-inout);
+  }
+
+  :global(html[data-theme-shift]) .qa-hero-scrim {
+    opacity: 0;
+    transition-duration: 200ms;
+  }
+
+  /* The photograph itself just eases between exposures, never disappearing. */
+  .qa-hero-photo {
+    transition:
+      opacity 320ms var(--qa-ease-inout),
+      filter 320ms var(--qa-ease-inout);
+  }
+
+  /* Continuous scaling — never stranded between breakpoints. */
+  .qa-hero-logo {
+    height: clamp(76px, 15.5vw, 168px);
+  }
+
+  .qa-scroll-cue {
+    background: linear-gradient(to bottom, transparent, var(--qa-fg-subtle));
+    animation: qa-cue 2.6s var(--qa-ease-inout) infinite;
+  }
+
+  /*
+   * Entrance runs on load, so it is CSS-only — no observer, and therefore no
+   * chance of a flash of hidden content while a script boots.
+   */
+  [data-hero-item] {
+    animation: qa-hero-in 900ms var(--qa-ease) both;
+  }
+
+  @keyframes qa-hero-in {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 16px, 0);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes qa-cue {
+    0%,
+    100% {
+      transform: scaleY(0.35);
+      opacity: 0.25;
+    }
+    50% {
+      transform: scaleY(1);
+      opacity: 0.85;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-hero-item],
+    .qa-scroll-cue {
+      animation: none;
+    }
+  }
+</style>

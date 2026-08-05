@@ -1,6 +1,6 @@
 ---
+import Logo from '~/components/Logo.astro';
 import SocialLinks from '~/components/SocialLinks.astro';
-import { SITE } from '~/config/site';
 import { DEFAULT_LOCALE, isLocale } from '~/i18n/config';
 import { useTranslations } from '~/i18n/utils';
 
@@ -11,21 +11,31 @@ const t = useTranslations(isLocale(Astro.currentLocale) ? Astro.currentLocale : 
 const year = new Date().getFullYear();
 ---
 
-<footer class="mt-24 border-t border-border bg-bg-subtle">
-  <div
-    class="qa-container flex flex-col gap-8 py-12 md:flex-row md:items-center md:justify-between"
-  >
-    <div class="space-y-2">
-      <p class="text-lg font-semibold text-fg">{SITE.name}</p>
-      <p class="max-w-sm text-sm text-fg-muted">{t('site.tagline')}</p>
+{
+  /*
+  One block, no internal divider.
+
+  The copyright line used to sit below a rule of its own, which gave a piece of
+  fine print the same structural weight as the brand above it and left a wide
+  empty band between them. It is small print — it belongs tucked under the same
+  roof, not in its own room.
+*/
+}
+<footer class="border-t border-border bg-bg-subtle">
+  <div class="qa-container py-12">
+    <div class="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
+      <div>
+        <Logo height={40} />
+        <p class="mt-2.5 text-[0.7rem] font-medium tracking-[0.24em] text-fg-subtle uppercase">
+          {t('site.tagline')}
+        </p>
+      </div>
+
+      <SocialLinks size="sm" />
     </div>
 
-    <SocialLinks size="sm" />
-  </div>
-
-  <div class="border-t border-border">
     <div
-      class="qa-container flex flex-col gap-2 py-6 text-sm text-fg-subtle md:flex-row md:items-center md:justify-between"
+      class="mt-10 flex flex-col gap-1.5 text-sm text-fg-subtle md:flex-row md:items-center md:justify-between"
     >
       <p>{t('footer.copyright', { year })}</p>
       <p>{t('footer.builtWith')}</p>
