@@ -16,10 +16,27 @@ interface Props {
 }
 
 const { id, title, subtitle, muted = false, class: className = '' } = Astro.props;
+
+/**
+ * A <section> is NOT a landmark on its own.
+ *
+ * The HTML-AAM maps it to `region` only when it has an accessible name;
+ * without one it is exposed as a generic container, which is why the whole
+ * page previously offered a screen reader exactly three landmarks — banner,
+ * main, contentinfo — and no way to jump to the videos or the contact details.
+ * Pointing `aria-labelledby` at the heading that is already there turns each
+ * one into a named region, at the cost of one attribute.
+ *
+ * Derived from the section's own `id` so it is stable across builds and cannot
+ * collide. A section with a title but no id keeps its old behaviour rather
+ * than getting a generated id that changes whenever the markup moves.
+ */
+const headingId = id && title ? `${id}-title` : undefined;
 ---
 
 <section
   id={id}
+  aria-labelledby={headingId}
   class:list={[
     'scroll-mt-24 py-24 md:py-32',
     muted && 'border-y border-border bg-bg-subtle',
@@ -31,7 +48,10 @@ const { id, title, subtitle, muted = false, class: className = '' } = Astro.prop
       (title || subtitle) && (
         <Reveal as="header" class="mb-14 max-w-2xl">
           {title && (
-            <h2 class="font-display text-4xl font-semibold tracking-tight text-balance text-fg md:text-5xl">
+            <h2
+              id={headingId}
+              class="font-display text-4xl font-semibold tracking-tight text-balance text-fg md:text-5xl"
+            >
               {title}
             </h2>
           )}

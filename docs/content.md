@@ -51,6 +51,90 @@ Facebook exposes no predictable thumbnail URL, so a poster image must be placed
 in `public/` and referenced. Without one the embed still works but shows a plain
 gradient.
 
+## Keeping the grid current
+
+The feed videos are not curated. They come from the channel's public Atom feed,
+and the site fetches it in **two places** — which is the answer to "why did a
+deleted video stay on the page for two days".
+
+| When            | Where                     | What it produces                     |
+| --------------- | ------------------------- | ------------------------------------ |
+| `astro build`   | `src/lib/youtube.ts`      | the grid baked into `index.html`     |
+| Every page load | `functions/api/videos.ts` | JSON the page reconciles itself with |
+
+**Build time** is what a visitor sees first, what a visitor with JavaScript off
+sees, and what Google indexes. It is also frozen at the moment of the last
+deploy, which was the whole bug: a podcast deleted on YouTube kept its tile, and
+a live stream that started afterwards never appeared.
+
+**Load time** fixes that. `src/scripts/video-feed.ts` asks `/api/videos`,
+compares the answer to what is already rendered, and rebuilds the grid only if
+they differ. In the normal case — a current deploy — it compares, finds no
+change, and touches nothing.
+
+It cannot go via the browser directly: `youtube.com/feeds/videos.xml` sends no
+`Access-Control-Allow-Origin` header, so the request is blocked before it is
+made. That is the only reason a server-side route exists at all; see
+[deployment.md §13](./deployment.md#13-the-one-pages-function).
+
+### The snapshot is a third source
+
+`src/data/youtube-feed.json` is a committed fallback for when the live feed is
+unavailable **at build time**. YouTube rate-limits the Atom feed and signals it
+with **404**, indistinguishable from a deleted channel — and Cloudflare builds
+from shared IPs, so they are throttled more often than a laptop is. Without the
+snapshot, one unlucky build deploys an empty videos section.
+
+Refresh it when the channel publishes something you want in the fallback:
+
+```bash
+pnpm --filter @qa-ulew/web content:youtube
+```
+
+It fails loudly, unlike the build-time fetch, because the point is to notice.
+
+### Videos that cannot be embedded
+
+Neither the feed nor the snapshot says whether a video may be played in an
+iframe, and getting it wrong is visible: YouTube renders its own grey _"El
+propietario del video inhabilitó la reproducción en otros sitios web"_ panel
+inside our layout. Live streams started from some clients default to embedding
+**off**, so this is not rare.
+
+Both fetch paths therefore probe YouTube's oEmbed endpoint per video:
+
+| Response      | Meaning                   | What the page does               |
+| ------------- | ------------------------- | -------------------------------- |
+| `200`         | embeddable                | normal facade tile, plays inline |
+| `401` / `403` | owner disabled embedding  | tile links to YouTube instead    |
+| `404`         | deleted, private or gone  | dropped from the grid            |
+| anything else | the probe learned nothing | treated as embeddable            |
+
+Three deliberate biases, all in `lib/youtube-feed.ts`, and all pushing the same
+way: **when in doubt, leave the tile alone.**
+
+- **A failed probe means "embeddable".** Guessing "no" would stop working videos
+  from playing inline; guessing "yes" costs nothing we did not already have.
+- **A bad verdict is re-checked before it counts.** Both of the channel's videos
+  answered `401` and then `200` an hour later, from the same machine, with
+  nothing changed in between. So `blocked` and `gone` each need two agreeing
+  probes, and a disagreement resolves to `embeddable`. Only the unhappy path
+  pays the extra request.
+- **A unanimous `404` is ignored entirely.** Rate limiting answers 404 across
+  the board, so believing it would empty the section — the exact failure the
+  snapshot exists to prevent. A channel losing every video at once is not worth
+  optimising for; being throttled demonstrably is.
+
+Get this wrong in the safe direction and a visitor sees YouTube's error panel,
+which is what happened before any of this existed. Get it wrong in the unsafe
+direction and a working video silently stops playing, or disappears. The two are
+not equally bad, and the code is not neutral between them.
+
+To make a video play inline again, turn embedding back on in YouTube Studio —
+the video's **Detalles → Mostrar más → Permitir insertar**, or for a live
+stream, **Sala de control → Editar → Personalización**. Nothing in this
+repository can override it.
+
 ## How embedding works — and why
 
 `<VideoEmbed>` uses the **facade pattern**. On page load it renders only a

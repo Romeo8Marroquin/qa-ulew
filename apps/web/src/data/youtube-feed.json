@@ -1,18 +1,18 @@
 {
   "note": "Committed snapshot of the YouTube feed. Refresh with: pnpm --filter @qa-ulew/web content:youtube",
-  "fetchedAt": "2026-08-05T06:17:03.712Z",
+  "fetchedAt": "2026-08-06T22:17:06.938Z",
   "videos": [
     {
-      "id": "cS9aX_Tmzpg",
-      "title": "#EnVivo | Ricardo Celada Podcast 🎙️",
-      "published": "2026-08-04T22:40:07-07:00",
-      "description": "#EnVivo | Ricardo Celada Podcast 🎙️#QaUlew #RicardoCeladaPodcast #Sololá #Guatemala #Soy502"
+      "id": "_JbOROXYJS0",
+      "title": "#EnVivo Descendimiento de la Consagrada Imagen de la Virgen de la Asunción, Patrona de Sololá. ✨",
+      "published": "2026-08-06T21:42:19+00:00",
+      "description": "#EnVivo Solemne Descendimiento de la Consagrada Imagen de la Virgen de la Asunción, Patrona de Sololá. ✨\n\n#QaUlewTV #ConectandoConNuestraCultura #Sololá #TradicionSololateca #OrgulloSolola"
     },
     {
       "id": "99cE2iEj3hY",
       "title": "#EnVivo | Ricardo Celada Podcast 🎙️",
-      "published": "2026-08-04T05:18:59-07:00",
-      "description": "#EnVivo | Ricardo Celada Podcast 🎙️#QaUlew #RicardoCeladaPodcast #Sololá #Guatemala #Soy502"
+      "published": "2026-08-04T12:18:59+00:00",
+      "description": "#EnVivo | Ricardo Celada Podcast 🎙️\n\n#QaUlew #RicardoCeladaPodcast #Sololá #Guatemala #Soy502"
     }
   ]
 }

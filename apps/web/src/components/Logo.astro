@@ -10,6 +10,18 @@
  * Two artworks, black ink and white ink, rather than one file inverted with a
  * CSS filter: the brand ships both, so neither is synthesised. Only one is
  * displayed; `.qa-on-dark` forces the white one regardless of page theme.
+ *
+ * WHY THE NAME IS ON THE WRAPPER AND NOT ON AN <img>
+ *
+ * Both artworks are always in the DOM and a token picks which one is
+ * `display: block`. An `alt` on one of them is therefore an accessible name
+ * that exists in exactly one theme: the black mark carried the alt, so in dark
+ * mode — where it is `display: none` and the white one is `aria-hidden` — the
+ * footer logo had no name at all and screen readers announced nothing.
+ *
+ * So both images are decorative, always, and the name lives on the wrapper as
+ * `role="img"` + `aria-label`. That is theme-independent by construction: there
+ * is no arrangement of the tokens that can make it disappear.
  */
 import { Image } from 'astro:assets';
 
@@ -37,6 +49,13 @@ interface Props {
   class?: string;
   /** Set on above-the-fold marks so they are not lazy-loaded. */
   eager?: boolean;
+  /**
+   * The mark's accessible name. Pass `''` where the surrounding markup already
+   * names it — the hero, whose <h1> carries the name and tagline as live text,
+   * and the header link, which has its own `aria-label`. Announcing the
+   * wordmark twice in a row is worse than not announcing it.
+   */
+  alt?: string;
 }
 
 const {
@@ -45,6 +64,7 @@ const {
   fluid = false,
   class: className = '',
   eager = false,
+  alt = SITE.name,
 } = Astro.props;
 
 const logoBlack = variant === 'full' ? fullBlack : markBlack;
@@ -67,13 +87,13 @@ const shared = {
 };
 ---
 
-<span class:list={['inline-block', className]} style={fluid ? undefined : `height:${height}px`}>
-  <Image src={logoBlack} alt={SITE.name} {...shared} class:list={[shared.class, 'qa-logo-ink']} />
-  <Image
-    src={logoWhite}
-    alt=""
-    aria-hidden="true"
-    {...shared}
-    class:list={[shared.class, 'qa-logo-paper']}
-  />
+<span
+  class:list={['inline-block', className]}
+  style={fluid ? undefined : `height:${height}px`}
+  role={alt ? 'img' : undefined}
+  aria-label={alt || undefined}
+  aria-hidden={alt ? undefined : 'true'}
+>
+  <Image src={logoBlack} alt="" {...shared} class:list={[shared.class, 'qa-logo-ink']} />
+  <Image src={logoWhite} alt="" {...shared} class:list={[shared.class, 'qa-logo-paper']} />
 </span>

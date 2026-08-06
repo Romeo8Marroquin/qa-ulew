@@ -82,7 +82,27 @@ const t = useTranslations(locale);
     {/* A full-bleed page opens with the dark hero, which the header overlays. */}
     <Header overlay={fullBleed} />
 
-    <main id="main" class:list={['flex-1', !fullBleed && 'pt-[var(--qa-header-height)]']}>
+    {
+      /*
+      `tabindex="-1"` is what makes the skip link above actually work.
+
+      Following a fragment to a non-focusable element moves the browser's
+      *scroll* position and its sequential-navigation starting point, but not
+      focus — so the next Tab lands wherever the browser guesses, and a screen
+      reader keeps reading from where it was. The behaviour differs per browser
+      and has done for twenty years. A negative tabindex makes <main> a real
+      focus target without putting it in the tab order, which is the fix every
+      browser agrees on.
+
+      It never shows a focus ring: focus arrives here by fragment or by script,
+      never by keyboard, so `:focus-visible` does not match.
+    */
+    }
+    <main
+      id="main"
+      tabindex="-1"
+      class:list={['flex-1', !fullBleed && 'pt-[var(--qa-header-height)]']}
+    >
       <slot />
     </main>
 

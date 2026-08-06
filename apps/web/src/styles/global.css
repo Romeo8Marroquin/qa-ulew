@@ -58,6 +58,21 @@
     -webkit-text-size-adjust: 100%;
 
     /**
+     * The header is `position: fixed`, so anything the browser scrolls to
+     * lands UNDERNEATH it — an in-page anchor, and more importantly the next
+     * control when a keyboard user tabs to something off-screen. WCAG 2.4.11
+     * (Focus Not Obscured) is exactly this case: a focused element hidden
+     * behind sticky chrome is a focus indicator nobody can see.
+     *
+     * `scroll-padding-top` tells the scroller to stop short by the height of
+     * the bar. It costs nothing, it applies to every scroll the browser
+     * performs rather than only the ones we wrote code for, and it is why the
+     * `scroll-mt-*` on individual sections is now a belt-and-braces measure
+     * rather than the only thing holding anchors clear.
+     */
+    scroll-padding-top: var(--qa-header-height);
+
+    /**
      * Drive the hero's registered custom properties (see tokens.css).
      *
      * They are declared on :root and [data-theme='dark'], so the transition
@@ -192,10 +207,41 @@
     letter-spacing: -0.02em;
   }
 
+  /**
+   * The focus ring.
+   *
+   * `--qa-focus` is ink on paper and paper on ink, so the indicator is the
+   * highest-contrast thing available in either theme — 17.5:1 against the page
+   * in light, 17.4:1 in dark. It is the same ring in both, which is the point:
+   * a focus style that has to be redesigned per theme is one that will be
+   * wrong in whichever theme is looked at less.
+   *
+   * The 3px offset is not cosmetic. It leaves a band of page colour between
+   * the control and the ring, which is what makes the ring readable on the
+   * solid ink button — where a ring drawn flush would be ink on ink and
+   * effectively invisible.
+   *
+   * NOTE the absence of `border-radius`. It used to be set here, which meant
+   * focusing anything reshaped it: a pill-shaped control squared off to 4px
+   * the moment it was tabbed to. Browsers already draw the outline following
+   * the element's own radius, so the correct value is no value.
+   */
   :focus-visible {
     outline: 2px solid var(--qa-focus);
     outline-offset: 3px;
-    border-radius: var(--qa-radius-sm);
+  }
+
+  /**
+   * Focus that is CLIPPED is focus that does not exist.
+   *
+   * An offset ring is drawn outside the element's border box, so on a control
+   * that fills an `overflow: hidden` parent — the video play button, which is
+   * `inset-0` inside the rounded, clipped poster frame — the entire ring lands
+   * in the clipped region and nothing is painted. The fix is to draw it inward
+   * instead; the ring is the same, only on the other side of the edge.
+   */
+  .qa-focus-inset:focus-visible {
+    outline-offset: -3px;
   }
 
   /**
@@ -493,6 +539,14 @@
     transform-origin: left;
   }
 
+  /**
+   * Visually hidden, but present for a screen reader.
+   *
+   * `clip-path` rather than `display: none` or `visibility: hidden` — both of
+   * those remove the element from the accessibility tree as well, which is the
+   * opposite of what this class is for. It also keeps `width`/`height` at 1px
+   * rather than 0: a zero-sized element is skipped by some screen readers.
+   */
   .qa-sr-only {
     position: absolute;
     width: 1px;
@@ -505,6 +559,20 @@
     border: 0;
   }
 
+  /**
+   * The skip link, revealing itself on focus.
+   *
+   * `:focus` as well as `:focus-visible`. The two agree for a keyboard Tab, but
+   * `:focus-visible` is a heuristic and this is the one control on the page
+   * where a browser guessing "not visible" leaves a sighted keyboard user
+   * staring at a link they cannot see while their focus sits inside it.
+   * Matching both is the conservative choice, and a mouse cannot reach this
+   * link anyway, so the broader selector costs nothing.
+   *
+   * z-index above the header (50), the mobile panel (60) and the custom
+   * scrollbar (90), so nothing can cover it once it appears.
+   */
+  .qa-sr-only:focus,
   .qa-sr-only:focus-visible {
     position: fixed;
     top: 0.75rem;
@@ -518,5 +586,45 @@
     background-color: var(--qa-fg);
     color: var(--qa-bg);
     border-radius: var(--qa-radius-md);
+  }
+}
+
+/**
+ * WINDOWS HIGH CONTRAST / forced colours.
+ *
+ * The OS replaces the palette with the user's own small set of system colours.
+ * It forces `color`, `background-color`, `border-color` and friends — but NOT
+ * gradients, NOT `backdrop-filter` and NOT `box-shadow` (which it simply drops).
+ * So anything on this page whose legibility comes from a blur, a shadow or a
+ * gradient rather than from a real background survives the switch looking
+ * correct in devtools and unusable on screen.
+ *
+ * `Canvas`, `CanvasText` and `Highlight` are the system keywords. Using them
+ * rather than a fixed colour is what makes this right for every high-contrast
+ * theme instead of only the black-on-white one that gets tested.
+ *
+ * DELIBERATELY UNLAYERED, and deliberately small. Unlayered rules beat anything
+ * in `@layer`, which is how these two override the base layer above — but they
+ * do NOT beat an Astro component's scoped styles, which carry an extra
+ * `[data-astro-cid-*]` and therefore out-specify a bare class here. The
+ * forced-colours fixes for the header bar, the menu panel and the custom
+ * scrollbar live in those components' own <style> blocks for that reason, and
+ * because a component should own how it degrades.
+ */
+@media (forced-colors: active) {
+  /* `Highlight` is what the OS itself uses for focus, so the ring matches
+   * every other focused thing on the user's machine. */
+  :focus-visible {
+    outline-color: Highlight;
+  }
+
+  /*
+   * The skip link is ink-on-paper: forced colours flatten it to Canvas on
+   * Canvas, i.e. an invisible panel over the page. The border is the only
+   * thing that gives it an edge again.
+   */
+  .qa-sr-only:focus,
+  .qa-sr-only:focus-visible {
+    border: 1px solid CanvasText;
   }
 }

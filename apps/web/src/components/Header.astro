@@ -52,18 +52,27 @@ const home = localePath('/', locale);
       then fades in. On pages without a hero it is simply always visible.
     */
     }
+    {
+      /*
+      The link is named "Inicio", not "Qa Ulew": a link's name should say where
+      it goes, and the wordmark is already announced by the hero's <h1> and by
+      the footer. So the mark inside it is passed `alt=""` — with a name on
+      both, a screen reader would read the destination and then the brand, for
+      one control.
+    */
+    }
     <a
       href={home}
       data-home-link
       class="qa-header-logo group flex items-center transition-opacity duration-300 ease-[var(--ease-brand)] hover:opacity-60"
       aria-label={t('nav.home')}
     >
-      <Logo height={34} eager />
+      <Logo height={34} eager alt="" />
     </a>
 
     <nav
       class="qa-header-pill qa-header-pill--nav hidden items-center gap-8 md:flex"
-      aria-label={t('nav.home')}
+      aria-label={t('nav.primaryNav')}
     >
       {
         navItems.map((item) => (
@@ -81,12 +90,23 @@ const home = localePath('/', locale);
       <LocalePicker />
       <ThemeToggle />
 
+      {
+        /*
+        `aria-expanded` is the state; the label is not.
+
+        This used to read "Abrir menú" in both states, so once open a screen
+        reader announced "Abrir menú, expandido" — a control describing itself
+        and its state in contradictory terms. The WAI-ARIA disclosure pattern
+        is one constant name plus `aria-expanded`, which is also why there is
+        no longer a "Cerrar menú" string to swap in.
+      */
+      }
       <button
         type="button"
         data-menu-toggle
         aria-expanded="false"
         aria-controls="qa-mobile-nav"
-        aria-label={t('nav.menu.open')}
+        aria-label={t('nav.menu.label')}
         class="qa-icon-btn qa-menu-btn md:hidden"
       >
         {
@@ -122,8 +142,16 @@ const home = localePath('/', locale);
 */
 }
 <div id="qa-mobile-nav" data-mobile-nav class="qa-menu-panel md:hidden">
-  <nav aria-label={t('nav.home')}>
-    <ul class="flex flex-col p-2">
+  <nav aria-label={t('nav.mobileNav')}>
+    {
+      /*
+      `role="list"` is not redundant. Safari removes list semantics from a <ul>
+      whose `list-style` is `none` — which Tailwind's preflight sets on every
+      list — so VoiceOver stops announcing "list, 3 items" and the count of
+      links in the menu is lost. Restating the role puts it back.
+    */
+    }
+    <ul role="list" class="flex flex-col p-2">
       {
         navItems.map((item) => (
           <li>
@@ -434,169 +462,62 @@ const home = localePath('/', locale);
       transform 300ms var(--ease-brand, ease),
       visibility 300ms;
   }
+
+  /*
+   * Reduced transparency: the bar becomes a real surface.
+   *
+   * `--qa-veil-blur` resolves to `none` under this preference (see tokens.css),
+   * which on its own would leave the bar in its WORST state — a 78%/62%
+   * translucent gradient with nothing blurring the content sliding underneath
+   * it. So the gradient goes solid across the bar itself.
+   *
+   * The mask is deliberately kept. It only feathers the 1rem overhang below the
+   * bar, where no text sits, so the header still has no hard edge cutting
+   * across the page — the design intent survives, the see-through does not.
+   */
+  @media (prefers-reduced-transparency: reduce) {
+    .qa-header::before {
+      background: linear-gradient(
+        to bottom,
+        var(--qa-fade) 0%,
+        var(--qa-fade) 82%,
+        transparent 100%
+      );
+    }
+  }
+
+  /* --- Forced colours --------------------------------------------------
+   *
+   * Both surfaces in this file are built out of things Windows High Contrast
+   * does not force: the bar is a masked gradient (a background-IMAGE, so our
+   * paper colour would paint straight through onto the user's chosen
+   * background) and the panel's legibility comes from a backdrop blur and a
+   * box-shadow, of which the blur is ignored and the shadow is dropped
+   * outright — leaving the menu as bare links over the live page.
+   *
+   * Both therefore give up the material and take a real system background with
+   * a real edge. The rules live here rather than in global.css because Astro
+   * scopes the styles above with an extra attribute selector, which would
+   * out-specify anything global trying to override them.
+   */
+  @media (forced-colors: active) {
+    .qa-header::before {
+      background: Canvas;
+      /* The mask feathers the bottom edge away. Against a solid system
+       * background that fade reads as the bar being torn off, so the bar
+       * simply ends on its border instead. */
+      -webkit-mask-image: none;
+      mask-image: none;
+      border-bottom: 1px solid CanvasText;
+    }
+
+    .qa-menu-panel[data-open] {
+      background-color: Canvas;
+      border: 1px solid CanvasText;
+    }
+  }
 </style>
 
 <script>
-  // --- Scrolled state -----------------------------------------------------
-  const header = document.querySelector<HTMLElement>('[data-site-header]');
-
-  if (header) {
-    // TWO independent states, deliberately decoupled:
-    //
-    //   data-scrolled   the backdrop. Comes in as soon as the page moves at
-    //                   all, so navigation never floats bare over scrolling
-    //                   content — which is what made the links illegible as
-    //                   the hero passed beneath them.
-    //   data-past-hero  the wordmark. Waits until the hero has fully cleared,
-    //                   so the mark is never on screen twice.
-    //
-    // These used to be one flag, which forced a choice between those two bugs.
-    let atTop = true;
-    let menuOpen = false;
-
-    // The mobile menu also forces the backdrop on: an open panel over a
-    // transparent header would show the page through the links.
-    const syncBackdrop = () => header.toggleAttribute('data-scrolled', !atTop || menuOpen);
-
-    // Driven by IntersectionObserver rather than scroll listeners — the browser
-    // does this work off the main thread, so it cannot cause scroll jank.
-    const sentinel = document.createElement('div');
-    sentinel.setAttribute('aria-hidden', 'true');
-    sentinel.style.cssText = 'position:absolute;top:0;height:1px;width:1px;pointer-events:none';
-    document.body.prepend(sentinel);
-
-    new IntersectionObserver(
-      ([entry]) => {
-        atTop = entry?.isIntersecting ?? true;
-        syncBackdrop();
-      },
-      { threshold: 0 },
-    ).observe(sentinel);
-
-    const hero = document.querySelector('.qa-hero');
-
-    if (header.hasAttribute('data-overlay') && hero) {
-      // `rootMargin` accepts only px and %, never rem, so the header height is
-      // measured rather than read from the custom property.
-      const headerHeight = Math.round(header.getBoundingClientRect().height) || 72;
-
-      new IntersectionObserver(
-        ([entry]) => {
-          header.toggleAttribute('data-past-hero', !(entry?.isIntersecting ?? true));
-        },
-        { rootMargin: `-${headerHeight}px 0px 0px 0px`, threshold: 0 },
-      ).observe(hero);
-    }
-
-    // Header.astro owns both behaviours, so the menu reports its state here.
-    document.addEventListener('qa:menu', (event) => {
-      menuOpen = (event as CustomEvent<boolean>).detail;
-      syncBackdrop();
-    });
-  }
-
-  // --- Home link ----------------------------------------------------------
-  //
-  // The wordmark is a real <a href="/"> — correct for SEO, for middle-click,
-  // for "open in new tab", and for the day a second page exists. But when the
-  // visitor is ALREADY on that page, following it triggers a full document
-  // reload: the browser tears down and repaints, the theme boot script runs
-  // again, and the result is the flicker.
-  //
-  // So when the destination is the current page, cancel the navigation and
-  // scroll instead. The link keeps all its semantics; only the redundant
-  // reload is skipped.
-  document.querySelectorAll<HTMLAnchorElement>('[data-home-link]').forEach((link) => {
-    link.addEventListener('click', (event) => {
-      // Never hijack modified clicks — those are deliberate new-tab/window
-      // requests and must behave normally.
-      if (
-        event.defaultPrevented ||
-        event.metaKey ||
-        event.ctrlKey ||
-        event.shiftKey ||
-        event.altKey
-      )
-        return;
-      if (event.button !== 0) return;
-      if (link.pathname !== window.location.pathname) return;
-
-      event.preventDefault();
-
-      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' });
-
-      // Drop any '#section' left in the address bar so the URL matches what is
-      // now on screen. `replaceState` avoids adding a history entry, so Back
-      // still goes where the visitor expects.
-      if (window.location.hash) {
-        history.replaceState(null, '', window.location.pathname + window.location.search);
-      }
-
-      // Move focus to the top of the document so keyboard and screen-reader
-      // users follow the scroll instead of being left mid-page.
-      const main = document.getElementById('main');
-      if (main) {
-        main.setAttribute('tabindex', '-1');
-        main.focus({ preventScroll: true });
-        main.removeAttribute('tabindex');
-      }
-    });
-  });
-
-  // --- Mobile menu --------------------------------------------------------
-  const toggle = document.querySelector<HTMLButtonElement>('[data-menu-toggle]');
-  const nav = document.querySelector<HTMLElement>('[data-mobile-nav]');
-
-  if (toggle && nav) {
-    const isOpen = () => nav.hasAttribute('data-open');
-
-    const setOpen = (open: boolean) => {
-      if (open === isOpen()) return;
-
-      nav.toggleAttribute('data-open', open);
-      toggle.setAttribute('aria-expanded', String(open));
-      // Tells the scroll handler above to keep the header backdrop up while
-      // the panel is on screen.
-      document.dispatchEvent(new CustomEvent('qa:menu', { detail: open }));
-
-      if (open) {
-        // Move into the panel so keyboard users land on the first item.
-        nav.querySelector<HTMLAnchorElement>('a')?.focus({ preventScroll: true });
-      } else if (nav.contains(document.activeElement)) {
-        // Only reclaim focus if it is still inside the panel being closed —
-        // otherwise clicking elsewhere on the page would yank it back.
-        toggle.focus({ preventScroll: true });
-      }
-    };
-
-    toggle.addEventListener('click', () => setOpen(!isOpen()));
-
-    // Close after following an in-page anchor.
-    nav.addEventListener('click', (event) => {
-      if ((event.target as HTMLElement).closest('a')) setOpen(false);
-    });
-
-    /*
-     * Click outside closes it.
-     *
-     * `pointerdown` rather than `click`: it fires before focus moves, so the
-     * panel is already closing as the press lands rather than a frame later.
-     * The toggle is excluded so its own handler is not immediately undone.
-     */
-    document.addEventListener('pointerdown', (event) => {
-      if (!isOpen()) return;
-      const target = event.target as Node;
-      if (nav.contains(target) || toggle.contains(target)) return;
-      setOpen(false);
-    });
-
-    document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') setOpen(false);
-    });
-
-    window.matchMedia('(min-width: 768px)').addEventListener('change', (event) => {
-      if (event.matches) setOpen(false);
-    });
-  }
+  import '~/scripts/header';
 </script>

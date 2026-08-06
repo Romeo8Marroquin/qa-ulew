@@ -133,6 +133,19 @@ export interface FeaturedVideo {
    * Required for Facebook, which exposes no public thumbnail URL.
    */
   poster?: string;
+  /**
+   * False when the platform refuses to embed this video.
+   *
+   * Set automatically for feed videos by an oEmbed probe (`lib/youtube.ts`);
+   * omit it on pinned entries, where it defaults to true. A `false` tile drops
+   * the play button and links straight to the platform, because clicking play
+   * on one of these produces YouTube's own grey *"El propietario del video
+   * inhabilitó la reproducción en otros sitios web"* panel inside our layout.
+   * That setting lives on the video, not on us — live streams started from
+   * some clients default to it — so the only thing we control is whether the
+   * visitor hits it.
+   */
+  embeddable?: boolean;
 }
 
 /**

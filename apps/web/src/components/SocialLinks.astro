@@ -34,8 +34,16 @@ const labelled = variant === 'labelled';
 ---
 
 {
+  /*
+  `role="list"` restores what Tailwind's preflight takes away: Safari drops list
+  semantics from any <ul> with `list-style: none`, so VoiceOver stops announcing
+  how many platforms there are.
+*/
+}
+{
   links.length > 0 && (
     <ul
+      role="list"
       class:list={[
         'flex flex-wrap items-center',
         labelled ? 'gap-x-8 gap-y-3' : size === 'sm' ? 'gap-5' : 'gap-6',
@@ -44,11 +52,19 @@ const labelled = variant === 'labelled';
     >
       {links.map((link) => (
         <li>
+          {/*
+            The new-window warning goes INSIDE the `aria-label`, not in a hidden
+            span. An `aria-label` replaces the element's contents entirely, so a
+            span here would never be read.
+
+            The label still contains the visible platform name, which is what
+            WCAG 2.5.3 requires so that "click YouTube" works for voice control.
+          */}
           <a
             href={link.url}
             target="_blank"
             rel="noopener noreferrer"
-            aria-label={t('social.followOn', { platform: link.label })}
+            aria-label={`${t('social.followOn', { platform: link.label })}. ${t('a11y.newWindow')}`}
             class="qa-social inline-flex items-center gap-2.5 py-1 text-fg-muted"
             title={labelled ? undefined : link.label}
           >

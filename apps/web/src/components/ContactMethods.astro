@@ -76,7 +76,11 @@ const methods: Method[] = [
   needing a filled background.
 */
 }
-<ul class="qa-contact grid sm:grid-cols-2 sm:gap-x-14">
+{
+  /* `role="list"`: Tailwind's preflight sets `list-style: none`, which makes
+    Safari drop list semantics entirely. See SocialLinks for the same note. */
+}
+<ul role="list" class="qa-contact grid sm:grid-cols-2 sm:gap-x-14">
   {
     methods.map((method) => (
       <li>
@@ -96,6 +100,13 @@ const methods: Method[] = [
             </span>
             <span class="mt-1.5 block truncate text-[1.05rem] text-fg">{method.value}</span>
           </span>
+
+          {/*
+            Only the two that leave the site. The `tel:` and `mailto:` rows hand
+            off to the OS rather than opening a tab, so warning about a new
+            window there would simply be wrong.
+          */}
+          {method.external && <span class="qa-sr-only">{t('a11y.newWindow')}</span>}
 
           <Icon
             name="lucide:arrow-up-right"

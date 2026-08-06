@@ -41,15 +41,19 @@ pnpm install
 
 Run from the repo root.
 
-| Command        | What it does                                            |
-| -------------- | ------------------------------------------------------- |
-| `pnpm dev`     | Dev server at http://localhost:4321                     |
-| `pnpm build`   | Build every workspace package                           |
-| `pnpm preview` | Serve the production build locally                      |
-| `pnpm check`   | Type-check `.astro` and `.ts` (`astro check`)           |
-| `pnpm format`  | Format everything with Prettier                         |
-| `pnpm verify`  | `format:check` + `check` + `build` — run before pushing |
-| `pnpm clean`   | Remove build output and `node_modules`                  |
+| Command              | What it does                                              |
+| -------------------- | --------------------------------------------------------- |
+| `pnpm dev`           | Dev server at http://localhost:4321                       |
+| `pnpm build`         | Build every workspace package                             |
+| `pnpm preview`       | Serve the production build locally                        |
+| `pnpm check`         | Type-check `.astro` and `.ts` (`astro check`)             |
+| `pnpm lint`          | ESLint, including 34 accessibility rules                  |
+| `pnpm test`          | Run the test suite once                                   |
+| `pnpm test:watch`    | Re-run tests on change                                    |
+| `pnpm test:coverage` | Tests + coverage, enforced at 100%                        |
+| `pnpm format`        | Format everything with Prettier                           |
+| `pnpm verify`        | format + lint + types + coverage + build — before pushing |
+| `pnpm clean`         | Remove build output and `node_modules`                    |
 
 Target a single package with `--filter`:
 
@@ -90,15 +94,17 @@ Three rules keep this working:
 
 ## Documentation
 
-| Document                                | Covers                                                    |
-| --------------------------------------- | --------------------------------------------------------- |
-| [architecture.md](docs/architecture.md) | Repo layout, technology choices, conventions              |
-| [deployment.md](docs/deployment.md)     | **Exact Cloudflare Pages settings**, domain, env vars     |
-| [design.md](docs/design.md)             | Applying the real palette, fonts and logo; theming        |
-| [i18n.md](docs/i18n.md)                 | Using translations; adding a language                     |
-| [content.md](docs/content.md)           | Videos, embeds, social links, Cloudflare Stream migration |
-| [seo.md](docs/seo.md)                   | Metadata, share cards, search engines, analytics, upkeep  |
-| [ads.md](docs/ads.md)                   | Ad strategy, AdSense vs. custom, prerequisites            |
+| Document                                  | Covers                                                    |
+| ----------------------------------------- | --------------------------------------------------------- |
+| [architecture.md](docs/architecture.md)   | Repo layout, technology choices, conventions              |
+| [deployment.md](docs/deployment.md)       | **Exact Cloudflare Pages settings**, domain, env vars     |
+| [design.md](docs/design.md)               | Applying the real palette, fonts and logo; theming        |
+| [accessibility.md](docs/accessibility.md) | WCAG 2.2 AA record, contrast figures, OS preferences      |
+| [testing.md](docs/testing.md)             | Vitest setup, the 100% coverage gate, lint rules          |
+| [i18n.md](docs/i18n.md)                   | Using translations; adding a language                     |
+| [content.md](docs/content.md)             | Videos, embeds, social links, Cloudflare Stream migration |
+| [seo.md](docs/seo.md)                     | Metadata, share cards, search engines, analytics, upkeep  |
+| [ads.md](docs/ads.md)                     | Ad strategy, AdSense vs. custom, prerequisites            |
 
 ---
 
@@ -125,7 +131,8 @@ troubleshooting table — is in [docs/deployment.md](docs/deployment.md).
 
 ## What's built
 
-- Static Astro site, ~1 KB of JavaScript total
+- Static Astro site, ~2.5 KB of JavaScript total (one bundle, measured from
+  `dist/`)
 - Light/dark theming that follows the OS, with a manual override and no
   flash of the wrong theme on load
 - Spanish (Guatemalan _voseo_) with type-safe translations; adding a language
@@ -136,8 +143,13 @@ troubleshooting table — is in [docs/deployment.md](docs/deployment.md).
 - Inert ad slots with placement decided and layout space reserved
 - SEO: canonical URLs, Open Graph, Twitter cards, sitemap, `robots.txt`, and
   automatic `noindex` on preview deploys
-- Accessibility: skip link, visible focus rings, `prefers-reduced-motion`,
-  labelled controls
+- **289 tests at 100% coverage** of every line of TypeScript the site ships,
+  enforced by `pnpm verify` — plus ESLint with a static accessibility gate. See
+  [docs/testing.md](docs/testing.md)
+- Accessibility: **WCAG 2.2 AA**, verified — named landmarks, a described hero
+  photograph, measured contrast in both themes, and honoured
+  `prefers-reduced-motion`, `prefers-contrast`, `prefers-reduced-transparency`
+  and Windows High Contrast. See [docs/accessibility.md](docs/accessibility.md)
 
 ## What's pending
 

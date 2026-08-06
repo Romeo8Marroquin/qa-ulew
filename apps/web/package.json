@@ -10,13 +10,16 @@
     "build": "astro build",
     "preview": "astro preview",
     "check": "astro check",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "astro": "astro",
     "brand:logo": "node ./scripts/prepare-logo.mjs",
     "brand:icons": "node ./scripts/prepare-icons.mjs",
     "brand:og": "node ./scripts/prepare-og.mjs",
     "content:youtube": "node ./scripts/refresh-youtube.mjs",
     "seo:indexnow": "node ./scripts/indexnow.mjs",
-    "cf:preview": "wrangler pages dev ./dist",
+    "cf:preview": "wrangler pages dev apps/web/dist --cwd ../..",
     "cf:deploy": "wrangler pages deploy ./dist"
   },
   "dependencies": {
@@ -32,8 +35,11 @@
     "@astrojs/check": "^0.9.10",
     "@iconify-json/lucide": "^1.2.121",
     "@iconify-json/simple-icons": "^1.2.93",
+    "@vitest/coverage-v8": "^4.1.10",
+    "happy-dom": "^20.11.1",
     "sharp": "^0.35.3",
     "typescript": "^6.0.3",
+    "vitest": "^4.1.10",
     "wrangler": "^4.118.0"
   }
 }

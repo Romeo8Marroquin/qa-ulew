@@ -31,34 +31,5 @@ const { delay = 0, as: Tag = 'div', class: className = '' } = Astro.props;
 </Tag>
 
 <script>
-  const items = document.querySelectorAll<HTMLElement>('[data-reveal]');
-
-  // Honour the OS setting: no entrance animation, everything simply present.
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  if (!reducedMotion && 'IntersectionObserver' in window) {
-    // Hide only now that we know the observer will run to un-hide them.
-    items.forEach((item) => item.setAttribute('data-reveal-hidden', ''));
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
-          const target = entry.target as HTMLElement;
-          target.setAttribute('data-revealed', '');
-          target.removeAttribute('data-reveal-hidden');
-          // Reveal once. Re-animating on scroll-up is distracting.
-          observer.unobserve(target);
-        }
-      },
-      {
-        // Start slightly before the element reaches the fold, so it finishes
-        // arriving as it becomes properly visible.
-        rootMargin: '0px 0px -12% 0px',
-        threshold: 0.05,
-      },
-    );
-
-    items.forEach((item) => observer.observe(item));
-  }
+  import '~/scripts/reveal';
 </script>

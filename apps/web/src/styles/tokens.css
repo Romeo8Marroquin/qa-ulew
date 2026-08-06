@@ -124,7 +124,24 @@
 
   --qa-fg: #16150f;
   --qa-fg-muted: #5a574e;
-  --qa-fg-subtle: #8a8478;
+  /**
+   * WAS #8a8478, which measured 3.56:1 on --qa-bg and 3.26:1 on
+   * --qa-bg-subtle. WCAG AA asks 4.5:1 for text below 24px, and every use of
+   * this token is small: the footer copyright, the identity `dt` labels, the
+   * contact-row labels, the "Ver en YouTube" link. So the palest step of the
+   * ramp was the one place the page was unreadable for anyone with reduced
+   * contrast sensitivity — and it reads fine on a good monitor, which is
+   * exactly why it survived.
+   *
+   * #726d62 is the lightest warm grey that clears 4.5:1 against BOTH
+   * backgrounds (4.94:1 on --qa-bg, 4.52:1 on --qa-bg-subtle). Same hue, one
+   * step darker. --qa-fg-muted is untouched at 6.9:1, so the three-step
+   * ramp survives.
+   *
+   * If this ever moves again, check it against --qa-bg-subtle, not --qa-bg:
+   * the muted sections are the tighter constraint by ~0.4 of a ratio.
+   */
+  --qa-fg-subtle: #726d62;
 
   --qa-border: #e2ded6;
   --qa-border-strong: #c8c3b8;
@@ -218,7 +235,11 @@
 
   --qa-fg: #f4f2ed;
   --qa-fg-muted: #a8a396;
-  --qa-fg-subtle: #77726a;
+  /* Same fix as light mode, mirrored: #77726a measured 4.07:1 on --qa-bg and
+   * 3.83:1 on --qa-bg-subtle. #888176 gives 5.04:1 and 4.74:1.
+   * (#837d73 was the first candidate and lands at 4.48:1 on --qa-bg-subtle —
+   * two hundredths short, which is still a fail.) */
+  --qa-fg-subtle: #888176;
 
   --qa-border: #2a2822;
   --qa-border-strong: #423f37;
@@ -250,4 +271,91 @@
   --qa-hero-photo-filter: grayscale(1) contrast(1.12) brightness(0.82);
 
   color-scheme: dark;
+}
+
+/* --- Accessibility preferences -----------------------------------------
+ *
+ * Both of these are OS-level settings the visitor has already chosen. The site
+ * does not offer its own controls for them and should not: an operating-system
+ * preference is the one the user has actually configured, and duplicating it in
+ * page chrome means two switches that can disagree.
+ *
+ * They override tokens ONLY. No component knows these blocks exist, which is
+ * the point — a preference that has to be implemented per component is a
+ * preference that will be forgotten in half of them.
+ */
+
+/**
+ * "Increase contrast".
+ *
+ * The default palette is deliberately soft: hairline rules, a three-step text
+ * ramp, near-invisible borders. That is the design, and it meets AA. For
+ * someone who has asked their OS for more contrast it is not enough — the
+ * hairlines in particular disappear entirely.
+ *
+ * So the rules and the palest text step firm up. Measured against the tighter
+ * of the two backgrounds (--qa-bg-subtle) in each theme:
+ *
+ *   light   border 3.26:1 · border-strong 6.34:1 · fg-subtle 6.34:1
+ *   dark    border 3.83:1 · border-strong 7.27:1 · fg-subtle 7.27:1
+ *
+ * 3:1 is the WCAG 1.4.11 threshold for a non-text boundary; the text steps go
+ * to full AA-with-margin by collapsing onto --qa-fg-muted.
+ */
+@media (prefers-contrast: more) {
+  :root {
+    --qa-border: #8a8478;
+    --qa-border-strong: #5a574e;
+    --qa-fg-subtle: #5a574e;
+  }
+
+  [data-theme='dark'] {
+    --qa-border: #77726a;
+    --qa-border-strong: #a8a396;
+    --qa-fg-subtle: #a8a396;
+  }
+}
+
+/**
+ * "Reduce transparency".
+ *
+ * The header pills and the mobile menu panel are glass: 70% of the page colour
+ * plus a 13px backdrop blur. The blur is doing the legibility work, which is
+ * precisely the arrangement this preference exists to switch off — a blurred
+ * page showing through text is hard to read for anyone with low vision, and
+ * actively nauseating for some vestibular conditions.
+ *
+ * Making the veil fully opaque is enough: every surface that used it becomes a
+ * solid panel, and the blur has nothing left to show through. Setting the blur
+ * to `none` as well means the compositor stops promoting those layers, so this
+ * is also the cheapest the page ever renders.
+ */
+@media (prefers-reduced-transparency: reduce) {
+  :root,
+  [data-theme='dark'] {
+    --qa-veil: var(--qa-bg);
+    --qa-veil-blur: none;
+  }
+
+  /**
+   * The hero scrim thickens for the same reason, and it is the stronger case:
+   * this is live photographic detail directly behind the wordmark, the
+   * subtitle and two buttons. The default is tuned to let the landscape read
+   * through — which is the design, and which is exactly what someone who has
+   * turned this preference on has said they do not want behind text.
+   *
+   * It is raised, not made opaque. Erasing the photograph would answer the
+   * preference by deleting the content, and the request is for legible text,
+   * not for a blank panel. The edge value rises further than the centre so the
+   * image stays weakest where the type actually sits.
+   */
+  :root {
+    --qa-hero-scrim: rgb(251 250 248 / 0.78);
+    --qa-hero-scrim-edge: rgb(251 250 248 / 0.42);
+  }
+
+  [data-theme='dark'] {
+    --qa-hero-scrim: rgb(10 9 8 / 0.85);
+    --qa-hero-scrim-edge: rgb(10 9 8 / 0.5);
+  }
 }

@@ -58,6 +58,25 @@ In a monochrome system there is no separate brand hue: `--qa-brand` is simply
 ink — near-black on light, near-white on dark. Buttons are pure contrast,
 exactly like the logo.
 
+### The palette has a floor
+
+A monochrome palette is a contrast palette — the tonal steps _are_ the design,
+so there is no colour to fall back on when one of them is too pale. Two
+constraints therefore bind every value in the text ramp:
+
+- **Measure against `--qa-bg-subtle`, not `--qa-bg`.** The muted sections are
+  the tighter case by roughly 0.4 of a ratio, and both are in play everywhere.
+- **`--qa-fg-subtle` is the floor,** not a free choice. It sits at 4.5–5.0:1 —
+  a pass with little margin, deliberately, because it is the palest step that
+  clears AA. It was lighter and failed at 3.3–4.1:1.
+
+`tokens.css` also carries a `prefers-contrast: more` block with firmer values
+for the rules and the palest text step. Move a token and you move two: the
+default and its high-contrast counterpart.
+
+Every figure, and what breaks if these move, is in
+[accessibility.md](accessibility.md).
+
 ### Surfaces that are dark regardless of theme
 
 The hero photograph is dark whatever theme the page is in. Rather than
@@ -260,6 +279,25 @@ Three rules that matter more than the animations themselves:
 `prefers-reduced-motion: reduce` disables all of it — `global.css` neutralises
 transitions and animations globally, and `Reveal` skips the observer entirely
 rather than leaving elements hidden. Do not override this.
+
+## Preferences the design answers to
+
+Motion is one of four OS settings the palette responds to. The other three also
+change how the site looks, and all of them are handled in `tokens.css` rather
+than per component — a preference implemented component by component is one that
+will be missing from half of them.
+
+| Preference                     | What changes                                                    |
+| ------------------------------ | --------------------------------------------------------------- |
+| `prefers-reduced-motion`       | Animations, reveals, smooth scroll, the hero's theme cross-fade |
+| `prefers-contrast: more`       | Hairline rules and `--qa-fg-subtle` firm up                     |
+| `prefers-reduced-transparency` | The veil goes opaque; the header bar and hero scrim solidify    |
+| `forced-colors` (Windows HC)   | Glass surfaces take real system backgrounds                     |
+
+These are the only conditions under which the design is allowed to differ from
+what is in this document, and none of them are exposed as site controls — an OS
+setting is the one the visitor actually configured. Details and exact values in
+[accessibility.md](accessibility.md).
 
 ## Video thumbnails
 

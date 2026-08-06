@@ -1,8 +1,13 @@
 # Deployment — Cloudflare Pages
 
-The landing is a **fully static** Astro build. `apps/web/dist/` contains nothing
-but HTML, CSS, JS and assets, so Cloudflare Pages serves it directly — no
-adapter, no Functions, no runtime.
+The landing is a **static** Astro build. `apps/web/dist/` contains nothing but
+HTML, CSS, JS and assets, so Cloudflare Pages serves it directly — no adapter,
+no server rendering.
+
+One route is the exception: `/api/videos`, a Pages Function that keeps the video
+grid current between deploys. It is compiled from the repository's `functions/`
+directory, deploys with the same push, and needs no configuration of its own —
+see §13. Nothing else executes, and `dist/` is untouched by it.
 
 This document is the authoritative record of the production configuration.
 If the project has to be recreated, or a new environment added, everything
@@ -568,3 +573,91 @@ investment. The migration is straightforward and is part of why this repository
 is a monorepo: `apps/web` stays put and the deploy target changes around it.
 The build settings in §1 would then be replaced by a Workers Builds
 configuration of the kind described in §0.
+
+---
+
+## 13. The one Pages Function
+
+```
+functions/
+  api/
+    videos.ts     ->  https://qa-ulew.tv/api/videos
+```
+
+`/api/videos` re-fetches the YouTube feed on request so the page can correct
+itself after load. Why it exists at all is in
+[content.md](./content.md#keeping-the-grid-current); this section is about how
+it deploys.
+
+### Nothing was configured to make it work
+
+**It is not a Worker.** There is no second Cloudflare project, no
+`wrangler.toml`, no deploy command, no dashboard entry, and nothing in §1
+changed. Pages looks for a `functions/` directory in the **root directory**
+build setting — which is empty here, so the repository root — compiles whatever
+it finds, and serves those routes alongside the static assets. Push to `main`
+and it ships with everything else.
+
+The route path comes from the file path: `functions/api/videos.ts` answers
+`/api/videos`. Static assets win any collision, so a real file at that path
+would shadow it.
+
+### Why the directory is at the repository root
+
+Not in `apps/web/`, which is where everything else lives. Pages resolves
+`functions/` against the root directory setting, and that has to stay at the
+repository root for pnpm workspace resolution (§8). Moving the directory into
+the app would mean Pages never finds it and the route silently 404s — with the
+site still deploying perfectly, which is the worst kind of failure to diagnose.
+
+`functions/api/videos.ts` therefore imports across that boundary:
+
+```ts
+import { YOUTUBE } from "../../apps/web/src/config/site";
+import { applyVerdicts, parseFeed } from "../../apps/web/src/lib/youtube-feed";
+```
+
+Relative, not `~/` — the Functions bundler is esbuild running at the repository
+root and knows nothing about the Astro project's alias. `youtube-feed.ts` is
+written with **no imports of its own** specifically so it can be pulled across
+that line; adding one to it would break this build, not the app's.
+
+### Verifying it before pushing
+
+`astro dev` and `astro preview` serve no Functions, so the route 404s there and
+the page quietly keeps its build-time grid. To exercise the real thing:
+
+```bash
+pnpm build
+pnpm --filter @qa-ulew/web cf:preview
+curl http://127.0.0.1:8788/api/videos
+```
+
+That script carries `--cwd ../..` for a reason worth not undoing: wrangler
+resolves `functions/` against its working directory, and pnpm runs the script
+from `apps/web`, where there is none. Without the flag the site preview works
+perfectly and the route 404s — which reads exactly like the Function being
+broken.
+
+To type-check and compile it without serving:
+
+```bash
+wrangler pages functions build --outdir=<tmp>   # from the repository root
+```
+
+`apps/web/tsconfig.json` includes `../../functions/**/*.ts`, so `pnpm verify`
+type-checks the Function even though it lives outside the app.
+
+### What it costs
+
+Pages Functions bill as Workers requests: 100,000 per day on the free plan. The
+response is cached at the edge for five minutes and the cache is keyed on a
+fixed URL, so a burst of traffic collapses to roughly 288 invocations a day
+regardless of visitor count. Nothing here approaches the free tier.
+
+### If it ever needs to be turned off
+
+Delete `functions/` and the route stops existing. The page keeps working: the
+client script treats a 404 as "keep the build-time grid" (see rule 1 in
+`src/scripts/video-feed.ts`), which is exactly what it already does in `astro
+dev`.

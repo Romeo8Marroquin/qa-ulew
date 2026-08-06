@@ -28,13 +28,55 @@ export const es = {
     'Qa Ulew TV es un canal sololateco que conecta con nuestra cultura: reportajes, tradiciones y las historias de nuestra tierra y su gente.',
 
   // --- Navigation -------------------------------------------------------
+  //
+  // The two `nav.*Nav` values name the navigation LANDMARKS. A page may carry
+  // several, and a screen reader lists them by name — so if they share one
+  // label ("Inicio", as they did) the landmark list becomes three identical
+  // entries and stops being a way to navigate at all.
   'nav.home': 'Inicio',
   'nav.videos': 'Videos',
   'nav.about': 'Nosotros',
   'nav.contact': 'Contacto',
-  'nav.menu.open': 'Abrir menú',
-  'nav.menu.close': 'Cerrar menú',
+  'nav.primaryNav': 'Navegación principal',
+  'nav.mobileNav': 'Navegación del menú',
+  /**
+   * The menu button's name, and it does NOT change when the menu opens.
+   *
+   * The button carries `aria-expanded`, which is what announces the state, so
+   * a label reading "Abrir menú" while the state reads "expandido" contradicts
+   * itself. One name, plus the state — the WAI-ARIA disclosure pattern.
+   */
+  'nav.menu.label': 'Menú',
   'nav.skipToContent': 'Saltar al contenido principal',
+
+  // --- Accessibility ----------------------------------------------------
+  //
+  // Alternative text and assistive-technology labels are COPY, not markup:
+  // they are read aloud in the visitor's language, so they belong here with
+  // everything else that has to be translated. A hardcoded `alt` is the same
+  // bug as a hardcoded heading — it is simply one that only some people hit.
+  /**
+   * The hero photograph.
+   *
+   * Not decorative. It is an archival photograph of the lake the channel comes
+   * from, and it carries as much of the page's meaning as the wordmark does —
+   * describing it is the difference between arriving somewhere and arriving
+   * nowhere. Written as a description of the frame, so it stays true if the
+   * image is ever re-cropped or rescanned.
+   *
+   * It also earns its keep for search: an image this central with an empty
+   * `alt` tells Google nothing about what the page is about.
+   */
+  'a11y.hero.photo':
+    'Fotografía antigua en blanco y negro del lago de Atitlán: el agua rodeada de volcanes y laderas, vista desde lo alto de un camino de tierra. En primer plano, varias personas con sombrero junto a unas grandes piedras de molino.',
+  /**
+   * Appended to every link that opens a new tab.
+   *
+   * A link that changes context without warning is disorienting for anyone who
+   * cannot see the new window appear — and the browser's Back button no longer
+   * does what they expect.
+   */
+  'a11y.newWindow': 'Se abre en una ventana nueva',
 
   // --- Hero -------------------------------------------------------------
   'hero.subtitle':
@@ -50,6 +92,15 @@ export const es = {
   'videos.loadNotice':
     'Al reproducir, el video se carga desde {provider} y aplican sus políticas de privacidad.',
   'videos.watchOn': 'Ver en {provider}',
+  /**
+   * Shown on a tile whose video cannot be embedded.
+   *
+   * Deliberately about what the visitor should do, not about what went wrong.
+   * "El propietario inhabilitó la reproducción" is YouTube explaining itself to
+   * us; a visitor only needs to know the video is fine and lives over there.
+   */
+  'videos.onlyOnPlatform': 'Este video solo se puede ver en {provider}',
+  'a11y.videos.openOnPlatform': 'Ver "{title}" en {provider}',
 
   // --- About ------------------------------------------------------------
   'about.title': 'Sobre Qa Ulew',
@@ -112,6 +163,11 @@ export const es = {
   // --- Footer -----------------------------------------------------------
   'footer.copyright': '© {year} Qa Ulew. Todos los derechos reservados.',
   'footer.builtWith': 'Hecho con cariño desde nuestra tierra.',
+
+  // --- Advertising ------------------------------------------------------
+  // Names the ad region so it is announced as advertising rather than as an
+  // unlabelled block of content, and so it can be skipped.
+  'ads.label': 'Publicidad',
 
   // --- 404 --------------------------------------------------------------
   '404.title': 'Página no encontrada',

@@ -40,11 +40,29 @@ const hasSocial = activeSocialLinks().length > 0;
 */
 }
 <section class="qa-hero qa-grain relative isolate flex min-h-svh flex-col overflow-hidden bg-bg">
-  {/* --- Photograph ------------------------------------------------------- */}
-  <div class="absolute inset-0 -z-20 overflow-hidden" aria-hidden="true">
+  {
+    /* --- Photograph -------------------------------------------------------
+     *
+     * DESCRIBED, not decorative — the one image on the site where that is
+     * true. It sits behind the type, which is usually the definition of a
+     * decorative background, but this photograph is the channel: the lake it
+     * comes from, in the archival black and white the whole identity is built
+     * on. An empty `alt` here means a visitor using a screen reader arrives at
+     * a wordmark and a tagline with nothing underneath them, while everyone
+     * else arrives somewhere specific.
+     *
+     * It is described before the <h1> because that is the order it is seen in.
+     *
+     * The description is a translation key, not a literal: it is read aloud in
+     * the visitor's language, so it is copy like any other sentence on the
+     * page. It also gives search engines something to index for an image this
+     * central, which an empty alt does not.
+     */
+  }
+  <div class="absolute inset-0 -z-20 overflow-hidden">
     <Image
       src={landscape}
-      alt=""
+      alt={t('a11y.hero.photo')}
       widths={[799, 1200, 1600]}
       sizes="100vw"
       loading="eager"
@@ -83,8 +101,16 @@ const hasSocial = activeSocialLinks().length > 0;
       collapse into specks.
     */
     }
+    {
+      /*
+      The mark is passed `alt=""` because the <h1>'s own hidden text is the
+      heading. With a name on both, the level-one heading read "Qa Ulew. Qa
+      Ulew - Conectando con nuestra cultura" — the brand twice, at the first
+      thing anyone hears.
+    */
+    }
     <h1 data-hero-item class="w-full">
-      <Logo variant="full" eager fluid class="qa-hero-logo mx-auto" />
+      <Logo variant="full" eager fluid alt="" class="qa-hero-logo mx-auto" />
       <span class="qa-sr-only">{`${SITE.name} - ${t('site.tagline')}`}</span>
     </h1>
 

@@ -10,6 +10,12 @@
  *
  * `cloudflare-stream` is supported here already, so migrating a video off
  * YouTube later is a one-line data change in `config/site.ts`.
+ *
+ * A tile can also be rendered as a **link** rather than a facade, when the
+ * platform will not let us embed the video at all — see `embeddable` below.
+ * The two variants are deliberately the same markup up to the overlay, because
+ * `scripts/video-feed.ts` clones one of each from a <template> when the feed
+ * changes after load. Keep them structurally parallel.
  */
 import { Icon } from 'astro-icon/components';
 
@@ -24,9 +30,15 @@ interface Props {
   poster?: string;
   /** Set on the first video of the page so its poster is not lazy-loaded. */
   eager?: boolean;
+  /**
+   * False when the platform refuses to embed this video, in which case the
+   * tile links out instead of opening an iframe that would only render the
+   * platform's own error panel inside our layout.
+   */
+  embeddable?: boolean;
 }
 
-const { provider, id, title, poster, eager = false } = Astro.props;
+const { provider, id, title, poster, eager = false, embeddable = true } = Astro.props;
 
 const t = useTranslations(isLocale(Astro.currentLocale) ? Astro.currentLocale : DEFAULT_LOCALE);
 
@@ -56,15 +68,23 @@ function canonicalUrl(): string | null {
   switch (provider) {
     case 'youtube':
       return `https://www.youtube.com/watch?v=${encodeURIComponent(id)}`;
-    case 'facebook':
-      return id;
     case 'cloudflare-stream':
       return null;
+    case 'facebook':
+      return id;
   }
 }
 
 const src = embedUrl();
 const watchUrl = canonicalUrl();
+
+/**
+ * A tile with nowhere to send the visitor is worse than no tile. Cloudflare
+ * Stream has no public watch page, so a non-embeddable Stream video renders
+ * nothing at all rather than a poster that does not respond to a click.
+ */
+const linkOut = !embeddable && watchUrl !== null;
+const render = embeddable ? src !== null : linkOut;
 
 // YouTube exposes a predictable thumbnail; hqdefault always exists, unlike
 // maxresdefault which 404s on older or low-resolution uploads.
@@ -72,23 +92,39 @@ const posterSrc =
   poster ?? (provider === 'youtube' ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : undefined);
 
 const providerLabel = PROVIDER_LABEL[provider];
+
+/*
+ * Thumbnails arrive in full colour from YouTube. Desaturating them keeps the
+ * grid consistent with the channel's black-and-white identity; colour returns
+ * on hover as a small reward for intent, which also signals the tile is
+ * interactive.
+ */
+const posterClass =
+  'h-full w-full object-cover grayscale transition-all duration-500 ease-[var(--ease-brand)] group-hover:scale-[1.03] group-hover:grayscale-0';
+
+/*
+ * `qa-focus-inset` draws the focus ring inward. The default ring is offset 3px
+ * OUTSIDE the element, and this control is `inset-0` inside a rounded
+ * `overflow-hidden` frame — so every pixel of it was clipped and a keyboard
+ * user got no ring at all, only the slight background shift below, which is
+ * not a focus indicator.
+ */
+const overlayClass =
+  'qa-focus-inset absolute inset-0 flex cursor-pointer items-center justify-center bg-black/25 transition-colors duration-300 group-hover:bg-black/10 focus-visible:bg-black/40';
+
+const badgeClass =
+  'flex h-16 w-16 items-center justify-center rounded-full bg-white/95 text-black shadow-lg transition-transform duration-300 ease-[var(--ease-brand)] group-hover:scale-110';
 ---
 
 {
-  src && (
-    <figure class="group m-0">
+  render && (
+    <figure class="group m-0" data-video-tile data-video-id={id}>
       <div
         class="relative aspect-video w-full overflow-hidden rounded-lg border border-border bg-bg-subtle transition-shadow duration-300 ease-[var(--ease-brand)] group-hover:shadow-lg"
-        data-video-facade
-        data-src={src}
-        data-title={title}
+        data-video-facade={embeddable ? '' : undefined}
+        data-src={embeddable ? src : undefined}
+        data-title={embeddable ? title : undefined}
       >
-        {/*
-          Thumbnails arrive in full colour from YouTube. Desaturating them keeps
-          the grid consistent with the channel's black-and-white identity;
-          colour returns on hover as a small reward for intent, which also
-          signals the tile is interactive.
-        */}
         {posterSrc ? (
           <img
             src={posterSrc}
@@ -97,25 +133,48 @@ const providerLabel = PROVIDER_LABEL[provider];
             height="720"
             loading={eager ? 'eager' : 'lazy'}
             decoding="async"
-            class="h-full w-full object-cover grayscale transition-all duration-500 ease-[var(--ease-brand)] group-hover:scale-[1.03] group-hover:grayscale-0"
+            class={posterClass}
           />
         ) : (
           <div class="absolute inset-0 bg-gradient-to-br from-bg-subtle to-surface-raised" />
         )}
 
-        <button
-          type="button"
-          class="absolute inset-0 flex cursor-pointer items-center justify-center bg-black/25 transition-colors duration-300 group-hover:bg-black/10 focus-visible:bg-black/40"
-          aria-label={`${t('videos.play')}: ${title}`}
-        >
-          <span class="flex h-16 w-16 items-center justify-center rounded-full bg-white/95 text-black shadow-lg transition-transform duration-300 ease-[var(--ease-brand)] group-hover:scale-110">
-            <Icon name="lucide:play" class="ml-1 h-6 w-6" aria-hidden="true" />
-          </span>
-        </button>
+        {embeddable ? (
+          <button type="button" class={overlayClass} aria-label={`${t('videos.play')}: ${title}`}>
+            <span class={badgeClass}>
+              <Icon name="lucide:play" class="ml-1 h-6 w-6" aria-hidden="true" />
+            </span>
+          </button>
+        ) : (
+          <a
+            href={watchUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            class={overlayClass}
+            aria-label={t('a11y.videos.openOnPlatform', { title, provider: providerLabel })}
+          >
+            <span class={badgeClass}>
+              <Icon name="lucide:external-link" class="h-6 w-6" aria-hidden="true" />
+            </span>
+            <span class="qa-sr-only">{t('a11y.newWindow')}</span>
+          </a>
+        )}
       </div>
 
       <figcaption class="mt-4 flex items-start justify-between gap-4">
-        <span class="font-medium text-balance text-fg">{title}</span>
+        <span class="font-medium text-balance text-fg">
+          <span data-video-title>{title}</span>
+          {/*
+            Sighted visitors get the reason the tile behaves differently. The
+            overlay link already carries it for a screen reader in its
+            aria-label, so this is `aria-hidden` to avoid saying it twice.
+          */}
+          {!embeddable && (
+            <span class="mt-1 block text-sm font-normal text-fg-subtle" aria-hidden="true">
+              {t('videos.onlyOnPlatform', { provider: providerLabel })}
+            </span>
+          )}
+        </span>
         {watchUrl && (
           <a
             href={watchUrl}
@@ -125,6 +184,12 @@ const providerLabel = PROVIDER_LABEL[provider];
           >
             {t('videos.watchOn', { provider: providerLabel })}
             <Icon name="lucide:external-link" class="h-3.5 w-3.5" aria-hidden="true" />
+            {/*
+              The arrow glyph is what tells a sighted visitor this leaves the
+              site, and it is `aria-hidden` — so without this the warning
+              exists for exactly the people who can see it coming anyway.
+            */}
+            <span class="qa-sr-only">{t('a11y.newWindow')}</span>
           </a>
         )}
       </figcaption>
@@ -133,30 +198,5 @@ const providerLabel = PROVIDER_LABEL[provider];
 }
 
 <script>
-  // One delegated listener for every facade on the page.
-  document.querySelectorAll<HTMLElement>('[data-video-facade]').forEach((facade) => {
-    const button = facade.querySelector('button');
-    if (!button) return;
-
-    button.addEventListener(
-      'click',
-      () => {
-        const src = facade.dataset.src;
-        if (!src) return;
-
-        const iframe = document.createElement('iframe');
-        iframe.src = src;
-        iframe.title = facade.dataset.title ?? '';
-        iframe.loading = 'lazy';
-        iframe.allow =
-          'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
-        iframe.allowFullscreen = true;
-        iframe.className = 'absolute inset-0 h-full w-full border-0';
-
-        facade.replaceChildren(iframe);
-        iframe.focus();
-      },
-      { once: true },
-    );
-  });
+  import '~/scripts/video-facade';
 </script>
