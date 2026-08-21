@@ -16,6 +16,18 @@
  * The two variants are deliberately the same markup up to the overlay, because
  * `scripts/video-feed.ts` clones one of each from a <template> when the feed
  * changes after load. Keep them structurally parallel.
+ *
+ * EVERY ICON IN HERE IS `is:inline`, AND THAT IS LOAD-BEARING
+ *
+ * astro-icon normally emits an icon once as a <symbol> and every later use of
+ * it as `<use href="#ai:lucide:play">`. On this page the only definitions were
+ * the ones inside the first tile — and `video-feed.ts` replaces the whole grid
+ * with clones of the <template>s, which carry the `<use>` but not the symbol.
+ * So the moment the feed refreshed in production, every play arrow and every
+ * external-link glyph in the section resolved to nothing and the badges went
+ * blank. `is:inline` puts the path inside each <svg>, so a tile survives being
+ * cloned out of its <template> with no dependency on a sibling that may be
+ * gone. Any icon added below has to be inline for the same reason.
  */
 import { Icon } from 'astro-icon/components';
 
@@ -142,7 +154,7 @@ const badgeClass =
         {embeddable ? (
           <button type="button" class={overlayClass} aria-label={`${t('videos.play')}: ${title}`}>
             <span class={badgeClass}>
-              <Icon name="lucide:play" class="ml-1 h-6 w-6" aria-hidden="true" />
+              <Icon name="lucide:play" class="ml-1 h-6 w-6" aria-hidden="true" is:inline />
             </span>
           </button>
         ) : (
@@ -154,7 +166,7 @@ const badgeClass =
             aria-label={t('a11y.videos.openOnPlatform', { title, provider: providerLabel })}
           >
             <span class={badgeClass}>
-              <Icon name="lucide:external-link" class="h-6 w-6" aria-hidden="true" />
+              <Icon name="lucide:external-link" class="h-6 w-6" aria-hidden="true" is:inline />
             </span>
             <span class="qa-sr-only">{t('a11y.newWindow')}</span>
           </a>
@@ -183,7 +195,7 @@ const badgeClass =
             class="qa-link inline-flex shrink-0 items-center gap-1 text-sm whitespace-nowrap text-fg-subtle transition-colors hover:text-fg"
           >
             {t('videos.watchOn', { provider: providerLabel })}
-            <Icon name="lucide:external-link" class="h-3.5 w-3.5" aria-hidden="true" />
+            <Icon name="lucide:external-link" class="h-3.5 w-3.5" aria-hidden="true" is:inline />
             {/*
               The arrow glyph is what tells a sighted visitor this leaves the
               site, and it is `aria-hidden` — so without this the warning

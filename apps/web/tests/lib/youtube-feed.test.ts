@@ -128,54 +128,88 @@ describe('parseFeed', () => {
 });
 
 describe('probeEmbeddable', () => {
-  /** Answers each call with the next status in the list, repeating the last. */
-  const responds = (...codes: number[]) => {
+  const ORIGIN = 'https://qa-ulew.tv';
+
+  /**
+   * The embed page, as YouTube serves it: the bootstrap JSON is inside a
+   * <script>, so every quote arrives backslash escaped. The probe has to read
+   * it in that form, which is the whole reason these fixtures are not tidy
+   * JSON.
+   */
+  const embedPage = (status: string) =>
+    `<!DOCTYPE html><html><body><script>var x = {\\"previewPlayabilityStatus\\":` +
+    `{\\"status\\":\\"${status}\\",\\"reason\\":\\"Video no disponible\\"}};</script></body></html>`;
+
+  /** Answers each call with the next page in the list, repeating the last. */
+  const responds = (...pages: (string | null)[]) => {
     let call = 0;
     return vi.fn(async () => {
-      const code = codes[Math.min(call, codes.length - 1)];
+      const page = pages[Math.min(call, pages.length - 1)];
       call += 1;
-      return { status: code } as Response;
+      return {
+        ok: page !== null,
+        text: async () => page ?? '',
+      } as Response;
     }) as unknown as typeof fetch;
   };
 
-  const respond = (code: number) => responds(code);
+  const serves = (status: string) => responds(embedPage(status));
 
-  it('asks oEmbed about the right video', async () => {
-    const fetchMock = vi.fn(async () => ({ status: 200 }) as Response);
+  it('asks the embed page for the right video, as this site', async () => {
+    const fetchMock = vi.fn(async () => ({ ok: true, text: async () => embedPage('OK') }));
 
-    await probeEmbeddable('abc123', fetchMock as unknown as typeof fetch);
+    await probeEmbeddable('abc123', ORIGIN, fetchMock as unknown as typeof fetch);
 
-    const [url] = fetchMock.mock.calls[0] as unknown as [string];
-    expect(url).toContain('youtube.com/oembed');
-    expect(decodeURIComponent(url)).toContain('watch?v=abc123');
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('https://www.youtube-nocookie.com/embed/abc123');
+    // The verdict is per embedding site. Without this header YouTube answers
+    // "error 153" for every video, including ones that play perfectly.
+    expect((init.headers as Record<string, string>).referer).toBe(ORIGIN);
   });
 
-  it('reads 200 as embeddable, in a single request', async () => {
-    const fetchMock = vi.fn(async () => ({ status: 200 }) as Response);
+  it('reads OK as embeddable, in a single request', async () => {
+    const fetchMock = vi.fn(async () => ({ ok: true, text: async () => embedPage('OK') }));
 
-    await expect(probeEmbeddable('a', fetchMock as unknown as typeof fetch)).resolves.toBe(
+    await expect(probeEmbeddable('a', ORIGIN, fetchMock as unknown as typeof fetch)).resolves.toBe(
       'embeddable',
     );
     // The happy path is every video on a healthy build. It must not double.
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('reads a confirmed 401 as blocked', async () => {
-    await expect(probeEmbeddable('a', respond(401))).resolves.toBe('blocked');
+  it('reads a confirmed UNPLAYABLE as blocked', async () => {
+    // Covers both reasons at once: the owner disabling embedding, and a rights
+    // holder blocking playback of the content inside the video. The page says
+    // UNPLAYABLE for both, and the tile answer is the same either way.
+    await expect(probeEmbeddable('a', ORIGIN, serves('UNPLAYABLE'))).resolves.toBe('blocked');
   });
 
-  it('reads a confirmed 403 as blocked', async () => {
-    await expect(probeEmbeddable('a', respond(403))).resolves.toBe('blocked');
+  it('reads a confirmed ERROR as gone', async () => {
+    await expect(probeEmbeddable('a', ORIGIN, serves('ERROR'))).resolves.toBe('gone');
   });
 
-  it('reads a confirmed 404 as gone', async () => {
-    await expect(probeEmbeddable('a', respond(404))).resolves.toBe('gone');
+  it('reads a confirmed LOGIN_REQUIRED as gone', async () => {
+    // A private or age-restricted video. Nothing we can render.
+    await expect(probeEmbeddable('a', ORIGIN, serves('LOGIN_REQUIRED'))).resolves.toBe('gone');
   });
 
-  it('reads anything else as embeddable rather than degrading the tile', async () => {
+  it('reads an unrecognised status as embeddable rather than degrading the tile', async () => {
+    // YouTube is free to add one. Inventing a meaning for it is how a working
+    // video silently stops playing.
+    await expect(probeEmbeddable('a', ORIGIN, serves('SOMETHING_NEW'))).resolves.toBe('embeddable');
+  });
+
+  it('reads a page with no verdict in it as embeddable', async () => {
+    // A consent interstitial, a throttling page, or a markup change. None of
+    // them are evidence about the video.
+    await expect(probeEmbeddable('a', ORIGIN, responds('<html>nope</html>'))).resolves.toBe(
+      'embeddable',
+    );
+  });
+
+  it('reads a failed response as embeddable', async () => {
     // A 429 or a 500 says nothing about the video, only about the probe.
-    await expect(probeEmbeddable('a', respond(429))).resolves.toBe('embeddable');
-    await expect(probeEmbeddable('a', respond(500))).resolves.toBe('embeddable');
+    await expect(probeEmbeddable('a', ORIGIN, responds(null))).resolves.toBe('embeddable');
   });
 
   it('survives the request throwing', async () => {
@@ -183,32 +217,45 @@ describe('probeEmbeddable', () => {
       throw new Error('offline');
     });
 
-    await expect(probeEmbeddable('a', boom as unknown as typeof fetch)).resolves.toBe('embeddable');
+    await expect(probeEmbeddable('a', ORIGIN, boom as unknown as typeof fetch)).resolves.toBe(
+      'embeddable',
+    );
   });
 
   describe('a bad verdict has to be confirmed', () => {
-    // Both of the channel's videos answered 401 and then 200 an hour later from
-    // the same machine. A single 401 is not evidence that the owner disabled
-    // embedding, and acting on it turns a working video into a plain link.
+    // The embed page is far steadier than the oEmbed endpoint this replaced,
+    // but steadier is not proven, and the two wrong answers are not equally
+    // cheap: `blocked` turns a working video into a plain link, `gone` removes
+    // it from the page.
 
-    it('does not trust a 401 that a second probe contradicts', async () => {
-      await expect(probeEmbeddable('a', responds(401, 200))).resolves.toBe('embeddable');
+    it('does not trust an UNPLAYABLE that a second probe contradicts', async () => {
+      await expect(
+        probeEmbeddable('a', ORIGIN, responds(embedPage('UNPLAYABLE'), embedPage('OK'))),
+      ).resolves.toBe('embeddable');
     });
 
-    it('does not trust a 404 that a second probe contradicts', async () => {
-      // This one is worse if wrong: `gone` removes the video from the page.
-      await expect(probeEmbeddable('a', responds(404, 200))).resolves.toBe('embeddable');
+    it('does not trust an ERROR that a second probe contradicts', async () => {
+      await expect(
+        probeEmbeddable('a', ORIGIN, responds(embedPage('ERROR'), embedPage('OK'))),
+      ).resolves.toBe('embeddable');
     });
 
     it('resolves two different bad verdicts in favour of the video', async () => {
-      await expect(probeEmbeddable('a', responds(401, 404))).resolves.toBe('embeddable');
-      await expect(probeEmbeddable('a', responds(404, 401))).resolves.toBe('embeddable');
+      await expect(
+        probeEmbeddable('a', ORIGIN, responds(embedPage('UNPLAYABLE'), embedPage('ERROR'))),
+      ).resolves.toBe('embeddable');
+      await expect(
+        probeEmbeddable('a', ORIGIN, responds(embedPage('ERROR'), embedPage('UNPLAYABLE'))),
+      ).resolves.toBe('embeddable');
     });
 
     it('re-checks exactly once, not in a loop', async () => {
-      const fetchMock = vi.fn(async () => ({ status: 401 }) as Response);
+      const fetchMock = vi.fn(async () => ({
+        ok: true,
+        text: async () => embedPage('UNPLAYABLE'),
+      }));
 
-      await probeEmbeddable('a', fetchMock as unknown as typeof fetch);
+      await probeEmbeddable('a', ORIGIN, fetchMock as unknown as typeof fetch);
 
       expect(fetchMock).toHaveBeenCalledTimes(2);
     });

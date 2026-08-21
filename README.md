@@ -103,6 +103,7 @@ Three rules keep this working:
 | [testing.md](docs/testing.md)             | Vitest setup, the 100% coverage gate, lint rules          |
 | [i18n.md](docs/i18n.md)                   | Using translations; adding a language                     |
 | [content.md](docs/content.md)             | Videos, embeds, social links, Cloudflare Stream migration |
+| [live.md](docs/live.md)                   | vMix → Cloudflare Stream live plan, compatibility, costs  |
 | [seo.md](docs/seo.md)                     | Metadata, share cards, search engines, analytics, upkeep  |
 | [ads.md](docs/ads.md)                     | Ad strategy, AdSense vs. custom, prerequisites            |
 

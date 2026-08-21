@@ -68,41 +68,85 @@ export function parseFeed(xml: string, limit: number): FeedVideo[] {
   return videos;
 }
 
-/** What an oEmbed probe concluded about a video. */
+/** What a probe concluded about a video. */
 export type Embeddability = 'embeddable' | 'blocked' | 'gone';
 
-const OEMBED_URL = 'https://www.youtube.com/oembed?format=json&url=';
+const EMBED_URL = 'https://www.youtube-nocookie.com/embed/';
 
 /**
- * Ask YouTube whether a video may be embedded, before we try.
- *
- * The Atom feed says nothing about this. A video whose owner turned off
- * "Permitir insertar" — the default for live streams started from some
- * clients — still appears in the feed, and the iframe then renders YouTube's
- * own grey *"El propietario del video inhabilitó la reproducción en otros
- * sitios web"* panel inside our layout. The visitor sees a broken tile on our
- * page for a setting on theirs.
- *
- * oEmbed is the only public endpoint that answers this without an API key:
- *
- *   200        embeddable
- *   401 / 403  embedding disabled by the owner
- *   404        deleted, private or otherwise gone
- *
- * Anything else — a timeout, a 429, YouTube having a bad minute — is treated
- * as embeddable. A flaky probe must not silently downgrade every tile on the
- * page to a plain link; the worst case of guessing "yes" is the panel we had
- * before, and the worst case of guessing "no" is that working videos stop
- * playing inline.
+ * A browser UA measurably reduces how often YouTube throttles. Same string the
+ * feed fetch uses, for the same reason.
  */
-async function probeOnce(id: string, fetchImpl: typeof fetch): Promise<Embeddability> {
-  const target = encodeURIComponent(`https://www.youtube.com/watch?v=${id}`);
+const UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36';
 
+/**
+ * Ask YouTube whether a video may be played *here*, before we try.
+ *
+ * The Atom feed says nothing about this, and there are two separate ways a
+ * video that appears in it will not play in our iframe:
+ *
+ * 1. The **owner** turned off "Permitir insertar" — the default for live
+ *    streams started from some clients, so not rare.
+ * 2. A **rights holder** blocked embedded playback of the content inside it:
+ *    *"Este video tiene contenido de LatinAutor - UMPG, quien bloqueó su
+ *    reproducción en este sitio web o en esta aplicación."*
+ *
+ * WHY NOT oEMBED, WHICH THIS USED TO USE
+ *
+ * oEmbed answers the first question and is blind to the second: it returned
+ * `200` for six of the channel's fifteen videos that do not in fact play in an
+ * embed. It is also unstable — a video answered `401` in one run and `200` in
+ * the next, minutes apart, which is what the double-probe below was built for.
+ *
+ * The embed page itself answers both, because it is the very page the iframe
+ * loads. Its bootstrap JSON carries `previewPlayabilityStatus`:
+ *
+ *   OK          plays here
+ *   UNPLAYABLE  blocked, by the owner or by a rights holder
+ *   ERROR       deleted, private, or **no valid Referer** — see below
+ *
+ * Measured against the browser: every `UNPLAYABLE` verdict matched an iframe
+ * that reported error 150, and every `OK` matched one that played. Three runs
+ * gave identical answers where oEmbed had flip-flopped.
+ *
+ * THE Referer HEADER IS THE WHOLE MECHANISM
+ *
+ * The verdict is *per embedding site* — that is what "en este sitio web"
+ * means — so YouTube has to be told which site is asking. Without the header
+ * every video answers `ERROR` (player error 153), including ones that play
+ * perfectly. A query parameter does not substitute for it; this was tested.
+ *
+ * That failure mode is safe rather than silent: a stripped header makes every
+ * verdict `gone`, and `applyVerdicts` discards a unanimous `gone` and leaves
+ * every tile embeddable — exactly the behaviour before any probing existed.
+ *
+ * Anything else — a timeout, a 429, a response we cannot parse — is treated as
+ * embeddable. A flaky probe must not silently downgrade every tile on the page
+ * to a plain link.
+ */
+async function probeOnce(
+  id: string,
+  origin: string,
+  fetchImpl: typeof fetch,
+): Promise<Embeddability> {
   try {
-    const response = await fetchImpl(`${OEMBED_URL}${target}`);
+    const response = await fetchImpl(`${EMBED_URL}${encodeURIComponent(id)}`, {
+      headers: { referer: origin, 'user-agent': UA, 'accept-language': 'es' },
+    });
 
-    if (response.status === 404) return 'gone';
-    if (response.status === 401 || response.status === 403) return 'blocked';
+    if (!response.ok) return 'embeddable';
+
+    // The JSON is embedded in a <script>, so its quotes arrive backslash
+    // escaped: `previewPlayabilityStatus\":{\"status\":\"UNPLAYABLE\"`. Matching
+    // the punctuation loosely reads both that and the plain form.
+    const status = /previewPlayabilityStatus[^A-Za-z]{0,8}status[^A-Za-z]{0,8}([A-Z_]+)/.exec(
+      await response.text(),
+    )?.[1];
+
+    if (status === 'UNPLAYABLE') return 'blocked';
+    if (status === 'ERROR' || status === 'LOGIN_REQUIRED') return 'gone';
+    // `OK`, and anything we did not recognise, leave the tile alone.
     return 'embeddable';
   } catch {
     return 'embeddable';
@@ -114,10 +158,11 @@ async function probeOnce(id: string, fetchImpl: typeof fetch): Promise<Embeddabi
  *
  * MEASURED, NOT DEFENSIVE
  *
- * Both of the channel's videos answered 401 and then 200 an hour later, from
- * the same machine, with nothing changed in between that we can point to. So a
- * single 401 does not mean "the owner disabled embedding" — it can equally mean
- * "ask again". The same goes for a 404 on a video the feed just listed.
+ * The embed page is far steadier than the oEmbed endpoint this replaced —
+ * three consecutive runs agreed on every video, where oEmbed had returned 401
+ * and then 200 for the same video minutes apart. The re-check is kept anyway,
+ * because steadier is not the same as proven and the two wrong answers are not
+ * equally cheap.
  *
  * The asymmetry is the point. `embeddable` is the state that leaves a tile
  * exactly as it would have been without any of this, so it is returned
@@ -126,20 +171,23 @@ async function probeOnce(id: string, fetchImpl: typeof fetch): Promise<Embeddabi
  * regressions if wrong, so each is re-checked, and a disagreement resolves to
  * `embeddable` rather than to the worse outcome.
  *
- * The second request only happens on the unhappy path, which is rare.
+ * `origin` is the site the video would be embedded on. It is a parameter and
+ * not a constant here because this module deliberately imports nothing — see
+ * the note at the top of the file.
  */
 export async function probeEmbeddable(
   id: string,
+  origin: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<Embeddability> {
-  const first = await probeOnce(id, fetchImpl);
+  const first = await probeOnce(id, origin, fetchImpl);
   if (first === 'embeddable') return first;
 
-  const second = await probeOnce(id, fetchImpl);
+  const second = await probeOnce(id, origin, fetchImpl);
   return second === first ? first : 'embeddable';
 }
 
-/** A feed entry once its oEmbed verdict has been applied. */
+/** A feed entry once its playability verdict has been applied. */
 export interface ProbedVideo extends FeedVideo {
   embeddable: boolean;
 }
@@ -149,12 +197,20 @@ export interface ProbedVideo extends FeedVideo {
  *
  * IF EVERY PROBE SAYS "GONE", BELIEVE NONE OF THEM
  *
- * Rate limiting is the failure this whole pipeline is built around, and YouTube
- * signals it with **404** — the same status oEmbed returns for a deleted video.
- * A throttled caller therefore sees the feed 404, falls back to the snapshot,
- * and then watches every single probe 404 as well. Acting on that verdict would
- * empty the videos section, which is exactly the outcome the snapshot exists to
- * prevent; the check would have caused the failure it was added to avoid.
+ * Two unrelated failures both make every probe answer `gone`, and neither has
+ * anything to do with the videos:
+ *
+ * - **Rate limiting**, the failure this whole pipeline is built around. A
+ *   throttled caller sees the feed 404, falls back to the snapshot, and then
+ *   watches every probe fail too.
+ * - **A stripped `Referer`.** Without it the embed page reports player error
+ *   153 — status `ERROR` — for every video, including ones that play perfectly.
+ *   If a runtime ever drops that header, this is the check that keeps the page
+ *   working.
+ *
+ * Acting on either verdict would empty the videos section, which is exactly the
+ * outcome the snapshot exists to prevent; the check would have caused the
+ * failure it was added to avoid.
  *
  * So a unanimous "gone" is read as "the probes are not working right now" and
  * discarded entirely — including the embeddability half, since tiles that were

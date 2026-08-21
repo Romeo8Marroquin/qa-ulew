@@ -28,7 +28,7 @@
  * unless it gets a 200 with videos in it. A visitor with JavaScript off, or one
  * who arrives while YouTube is throttling us, sees exactly what they see today.
  */
-import { YOUTUBE } from '../../apps/web/src/config/site';
+import { SITE, YOUTUBE } from '../../apps/web/src/config/site';
 import { applyVerdicts, parseFeed, probeEmbeddable } from '../../apps/web/src/lib/youtube-feed';
 
 const FEED_URL = 'https://www.youtube.com/feeds/videos.xml?channel_id=';
@@ -96,7 +96,7 @@ async function collect(): Promise<VideoPayload[]> {
   // Probed together rather than in sequence: six round trips to YouTube one
   // after another would dominate the response time of a route whose whole
   // point is to be quick enough to run on every page load.
-  const verdicts = await Promise.all(videos.map((video) => probeEmbeddable(video.id)));
+  const verdicts = await Promise.all(videos.map((video) => probeEmbeddable(video.id, SITE.url)));
 
   return applyVerdicts(videos, verdicts).map((video) => ({
     id: video.id,

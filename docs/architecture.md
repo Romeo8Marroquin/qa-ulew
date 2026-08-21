@@ -67,15 +67,25 @@ from silently satisfying another's import.
 
 ## JavaScript budget
 
-The site currently ships **~4.3 KB of JavaScript, ~1.9 KB over the wire**,
-covering the theme toggle, the mobile menu, the scroll reveal, the custom
-scrollbar, the video facades and the video-feed refresh. Everything else is HTML
-and CSS.
+The site currently ships **~12.1 KB of JavaScript, ~4.1 KB gzipped**, across the
+home page. Everything else is HTML and CSS.
+
+| Where                  | Bytes | What                                                                                 |
+| ---------------------- | ----: | ------------------------------------------------------------------------------------ |
+| Inlined in the HTML    |  7067 | pre-paint theme, theme toggle, header + mobile menu, scroll reveal, custom scrollbar |
+| `video-facade` chunk   |  1975 | video facades, block fallback, tile cloning                                          |
+| `index.astro` chunk    |   836 | the video-feed refresh                                                               |
+| Astro prefetch runtime |  2488 | from `prefetch.prefetchAll`, not our code                                            |
+
+Measure it with the script in [testing.md](./testing.md#measuring-the-javascript-budget)
+rather than by eye — Astro inlines small scripts into the HTML, so counting
+`dist/_astro/*.js` alone misses more than half of it and silently flatters the
+number.
 
 Keep it that way. Before adding a client-side dependency, check whether the
 thing can be done at build time or with CSS.
 
-The refresh (`scripts/video-feed.ts`, ~1.3 KB) is the one thing here that could
+The refresh (`scripts/video-feed.ts`, 836 B) is the one thing here that could
 _not_ be, and it is worth reading as the standard for when to spend the budget:
 the grid is baked at deploy time, so without it a deleted video keeps its tile
 until someone happens to redeploy. It degrades to nothing — no fetch on pages

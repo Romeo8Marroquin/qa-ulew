@@ -136,7 +136,7 @@ export interface FeaturedVideo {
   /**
    * False when the platform refuses to embed this video.
    *
-   * Set automatically for feed videos by an oEmbed probe (`lib/youtube.ts`);
+   * Set automatically for feed videos by the embed-page probe (`lib/youtube.ts`);
    * omit it on pinned entries, where it defaults to true. A `false` tile drops
    * the play button and links straight to the platform, because clicking play
    * on one of these produces YouTube's own grey *"El propietario del video

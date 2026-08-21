@@ -1,6 +1,6 @@
 # Testing
 
-**289 tests. 100% coverage of every line of TypeScript the site ships**, with
+**362 tests. 100% coverage of every line of TypeScript the site ships**, with
 the threshold enforced so it cannot quietly slip.
 
 ```bash
@@ -206,8 +206,8 @@ esbuild from the repository root under a different runtime, so importing it here
 would test a shape that is not what ships.
 
 It is not untested territory, because it holds no logic of its own. Everything
-it does — parsing the feed, reading an oEmbed verdict, deciding what a unanimous
-404 means — lives in `src/lib/youtube-feed.ts`, which is covered directly by
+it does — parsing the feed, reading a playability verdict, deciding what a
+unanimous failure means — lives in `src/lib/youtube-feed.ts`, which is covered directly by
 `tests/lib/youtube-feed.test.ts` for exactly this reason. What remains in the
 Function is caching, headers and error mapping.
 
@@ -275,6 +275,30 @@ alone never reaches them.
 4. **A new accessibility guarantee** — add it to
    `tests/components/accessibility.test.ts` and to `docs/accessibility.md`.
    Those two are meant to agree.
+
+## Measuring the JavaScript budget
+
+`dist/_astro/*.js` is **not** the budget. Astro inlines small scripts straight
+into the HTML, so the theme toggle, the header, the scroll reveal and the
+scrollbar never appear as files — counting only the chunks misses more than half
+of what ships and quietly flatters the number. Count both:
+
+```bash
+node -e "
+const fs=require('fs'),zlib=require('zlib');
+const h=fs.readFileSync('apps/web/dist/index.html','utf8');
+const inline=[...h.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)]
+  .map(m=>m[1]).filter(s=>!s.trim().startsWith('{'));   // skip the JSON-LD block
+const ext=fs.readdirSync('apps/web/dist/_astro').filter(f=>f.endsWith('.js'))
+  .map(f=>fs.readFileSync('apps/web/dist/_astro/'+f));
+const all=Buffer.concat([...inline.map(Buffer.from),...ext]);
+console.log(all.length+' B raw, '+zlib.gzipSync(all).length+' B gzipped');
+"
+```
+
+The gzip figure is an estimate: the inlined scripts are really compressed as
+part of the HTML, not on their own. The current numbers are in
+[architecture.md](./architecture.md#javascript-budget).
 
 ## What this does not cover
 

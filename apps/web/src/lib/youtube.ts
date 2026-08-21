@@ -1,4 +1,4 @@
-import { YOUTUBE, type FeaturedVideo } from '~/config/site';
+import { SITE, YOUTUBE, type FeaturedVideo } from '~/config/site';
 import snapshot from '~/data/youtube-feed.json';
 import { applyVerdicts, type FeedVideo, parseFeed, probeEmbeddable } from '~/lib/youtube-feed';
 
@@ -87,15 +87,16 @@ async function fetchFeed(): Promise<FeedVideo[]> {
 }
 
 /**
- * Latest videos, with each one checked against oEmbed before it is rendered.
+ * Latest videos, with each one checked against the embed page before it is rendered.
  *
  * The probe answers two questions the Atom feed cannot:
  *
  * 1. **Is it still there?** A deleted video vanishes from the feed, but not
  *    from the snapshot — so on a throttled build the page would resurrect it
  *    and show YouTube's *"La persona que subió el video lo quitó"* panel. A
- *    404 from oEmbed drops it here instead.
- * 2. **May we embed it?** If the owner disabled embedding, the iframe renders
+ *    probe that answers ERROR drops it here instead.
+ * 2. **Will it play here?** If the owner disabled embedding, or a rights
+ *    holder blocked embedded playback of the content in it, the iframe renders
  *    a grey error inside our layout. `embeddable: false` turns the tile into a
  *    link to YouTube, which works.
  *
@@ -108,7 +109,9 @@ export async function fetchLatestVideos(): Promise<FeaturedVideo[]> {
   if (!YOUTUBE.channelId) return [];
 
   const videos = await fetchFeed();
-  const verdicts = await Promise.all(videos.map((video) => probeEmbeddable(video.id)));
+  // `SITE.url` is the referrer the probe presents: the verdict is per embedding
+  // site, so asking as anyone else answers a different question.
+  const verdicts = await Promise.all(videos.map((video) => probeEmbeddable(video.id, SITE.url)));
 
   return applyVerdicts(videos, verdicts).map((video) => ({
     provider: 'youtube' as const,

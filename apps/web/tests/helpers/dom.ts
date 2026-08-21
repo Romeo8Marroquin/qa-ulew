@@ -54,6 +54,8 @@ export interface Dom {
    */
   Event: typeof Event;
   MouseEvent: typeof MouseEvent;
+  /** Same cast, for the frame messages `video-facade.ts` listens to. */
+  MessageEvent: typeof MessageEvent;
   /**
    * One entry per `new IntersectionObserver(...)`, in construction order.
    *
@@ -206,6 +208,7 @@ export function createDom(bodyHtml = '', options: { url?: string } = {}): Dom {
     document,
     Event: happyWindow.Event as unknown as typeof Event,
     MouseEvent: happyWindow.MouseEvent as unknown as typeof MouseEvent,
+    MessageEvent: happyWindow.MessageEvent as unknown as typeof MessageEvent,
     observers,
     resizeObservers,
     media,

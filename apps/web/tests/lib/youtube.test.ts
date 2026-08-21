@@ -38,19 +38,33 @@ function ok(body: string): Response {
 const status = (code: number): Response =>
   ({ ok: code < 400, status: code, text: async () => '' }) as Response;
 
-const isOembed = (url: string): boolean => url.includes('/oembed');
+/**
+ * The embed page carrying one verdict, escaped the way YouTube ships it —
+ * the JSON lives inside a <script>, so its quotes arrive backslashed.
+ */
+const verdict = (playability: string): Response =>
+  ({
+    ok: true,
+    status: 200,
+    text: async () =>
+      `<script>{\\"previewPlayabilityStatus\\":{\\"status\\":\\"${playability}\\"}}</script>`,
+  }) as Response;
+
+const isProbe = (url: string): boolean => url.includes('/embed/');
 
 /**
- * A fetch that answers the Atom feed and the oEmbed probes differently.
+ * A fetch that answers the Atom feed and the embed-page probes differently.
  *
  * Every test in this file now makes two kinds of request — one for the feed and
  * one per video — and most of what is worth asserting lives in the gap between
- * them: a feed that works while the probes 404, or the reverse.
+ * them: a feed that works while the probes fail, or the reverse.
  */
 function routed(feedResponse: () => Response, probe: (id: string) => Response) {
-  return vi.fn(async (url: string) => {
-    if (!isOembed(url)) return feedResponse();
-    const id = decodeURIComponent(url).match(/[?&]v=([^&]+)/)?.[1] ?? '';
+  // `init` is declared even though the router ignores it, so the recorded calls
+  // are typed as the two-argument tuple the referrer assertion reads.
+  return vi.fn(async (url: string, _init?: RequestInit) => {
+    if (!isProbe(url)) return feedResponse();
+    const id = decodeURIComponent(url).split('/embed/')[1] ?? '';
     return probe(id);
   });
 }
@@ -183,7 +197,7 @@ describe('fetchLatestVideos — the happy path', () => {
  * YouTube's *"La persona que subió el video lo quitó"*, one showing *"El
  * propietario del video inhabilitó la reproducción en otros sitios web"*.
  */
-describe('fetchLatestVideos — the oEmbed probe', () => {
+describe('fetchLatestVideos — the embed-page probe', () => {
   const twoVideos = () =>
     ok(
       feed([
@@ -192,12 +206,13 @@ describe('fetchLatestVideos — the oEmbed probe', () => {
       ]),
     );
 
-  it('marks a video the owner blocked from embedding', async () => {
-    // 401 is what oEmbed answers for "Permitir insertar" turned off — the state
-    // both of the channel's current videos are actually in.
+  it('marks a video that will not play in an embed', async () => {
+    // UNPLAYABLE covers both real causes: the owner turning "Permitir insertar"
+    // off, and a rights holder blocking embedded playback of the content in it.
+    // Most of the channel's current videos are in one state or the other.
     vi.stubGlobal(
       'fetch',
-      routed(twoVideos, (id) => status(id === 'bbb' ? 401 : 200)),
+      routed(twoVideos, (id) => verdict(id === 'bbb' ? 'UNPLAYABLE' : 'OK')),
     );
 
     const videos = await fetchLatestVideos();
@@ -205,22 +220,12 @@ describe('fetchLatestVideos — the oEmbed probe', () => {
     expect(videos.map((video) => video.embeddable)).toEqual([true, false]);
   });
 
-  it('treats a 403 the same as a 401', async () => {
-    vi.stubGlobal(
-      'fetch',
-      routed(twoVideos, (id) => status(id === 'bbb' ? 403 : 200)),
-    );
-
-    await expect(fetchLatestVideos()).resolves.toHaveLength(2);
-    expect((await fetchLatestVideos())[1]?.embeddable).toBe(false);
-  });
-
   it('drops a video that is gone, so a stale snapshot cannot resurrect it', async () => {
     // The bug this was written for: a deleted video kept its tile because the
     // committed snapshot still listed it.
     vi.stubGlobal(
       'fetch',
-      routed(twoVideos, (id) => status(id === 'aaa' ? 404 : 200)),
+      routed(twoVideos, (id) => verdict(id === 'aaa' ? 'ERROR' : 'OK')),
     );
 
     await expect(fetchLatestVideos()).resolves.toEqual([
@@ -229,11 +234,13 @@ describe('fetchLatestVideos — the oEmbed probe', () => {
   });
 
   it('ignores the probes entirely when every one says gone', async () => {
-    // Rate limiting answers 404 across the board. Believing it would empty the
-    // section — the precise failure the snapshot fallback exists to prevent.
+    // Two ways this happens at once: throttling, and a Referer header that did
+    // not survive the runtime — without it YouTube answers "error 153" for
+    // every video, including ones that play. Believing that would empty the
+    // section, the precise failure the snapshot fallback exists to prevent.
     vi.stubGlobal(
       'fetch',
-      routed(twoVideos, () => status(404)),
+      routed(twoVideos, () => verdict('ERROR')),
     );
 
     await expect(fetchLatestVideos()).resolves.toEqual([
@@ -256,13 +263,26 @@ describe('fetchLatestVideos — the oEmbed probe', () => {
   });
 
   it('probes each video exactly once, in parallel with the others', async () => {
-    const fetchMock = routed(twoVideos, () => status(200));
+    const fetchMock = routed(twoVideos, () => verdict('OK'));
     vi.stubGlobal('fetch', fetchMock);
 
     await fetchLatestVideos();
 
-    const probed = fetchMock.mock.calls.map(([url]) => url).filter(isOembed);
+    const probed = fetchMock.mock.calls.map(([url]) => url).filter(isProbe);
     expect(probed).toHaveLength(2);
+  });
+
+  it('presents this site as the referrer', async () => {
+    // The verdict is per embedding site, so asking as anybody else answers a
+    // different question — or, with no referrer at all, none.
+    const fetchMock = routed(twoVideos, () => verdict('OK'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await fetchLatestVideos();
+
+    const probe = fetchMock.mock.calls.find(([url]) => isProbe(url as string));
+    const init = probe?.[1] as RequestInit;
+    expect((init.headers as Record<string, string>).referer).toBe('https://qa-ulew.tv');
   });
 });
 

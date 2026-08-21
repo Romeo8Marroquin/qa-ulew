@@ -53,6 +53,25 @@ gradient.
 
 ## Keeping the grid current
 
+### How many videos appear
+
+`FEATURED_VIDEOS` (pinned, curated, currently empty) first, then the newest
+`YOUTUBE.limit` — **6** — from the feed, with duplicates removed by
+`mergeVideos`. So the grid is "the last 6 uploads" today, and pinned entries add
+to that rather than displace it.
+
+One wrinkle worth knowing: the limit is applied when the feed is **parsed**, and
+videos judged `gone` are dropped **after** that. There is no backfill, so a
+build where one of the six has been deleted renders five tiles, not six. That is
+deliberate — reaching further down the feed to top up would mean probing videos
+nobody asked for on every build — but it is why the grid can be short.
+
+To show more, raise `YOUTUBE.limit` in `config/site.ts`. Each extra video costs
+one probe per build and per cache miss, and the grid is a 2-column layout, so
+even numbers look right.
+
+### Two fetches, not one
+
 The feed videos are not curated. They come from the channel's public Atom feed,
 and the site fetches it in **two places** — which is the answer to "why did a
 deleted video stay on the page for two days".
@@ -96,34 +115,59 @@ It fails loudly, unlike the build-time fetch, because the point is to notice.
 ### Videos that cannot be embedded
 
 Neither the feed nor the snapshot says whether a video may be played in an
-iframe, and getting it wrong is visible: YouTube renders its own grey _"El
-propietario del video inhabilitó la reproducción en otros sitios web"_ panel
-inside our layout. Live streams started from some clients default to embedding
-**off**, so this is not rare.
+iframe, and getting it wrong is visible: YouTube renders its own grey error
+panel inside our layout. There are two separate causes, and they are unrelated:
 
-Both fetch paths therefore probe YouTube's oEmbed endpoint per video:
+1. **The owner** turned off "Permitir insertar". Live streams started from some
+   clients default to embedding off, so this is not rare.
+2. **A rights holder** blocked embedded playback of content inside the video —
+   _"Este video tiene contenido de LatinAutor - UMPG, quien bloqueó su
+   reproducción en este sitio web o en esta aplicación."_
 
-| Response      | Meaning                   | What the page does               |
-| ------------- | ------------------------- | -------------------------------- |
-| `200`         | embeddable                | normal facade tile, plays inline |
-| `401` / `403` | owner disabled embedding  | tile links to YouTube instead    |
-| `404`         | deleted, private or gone  | dropped from the grid            |
-| anything else | the probe learned nothing | treated as embeddable            |
+Both fetch paths therefore probe **the embed page itself**, which is the page
+the iframe would load, and read `previewPlayabilityStatus` out of its bootstrap
+JSON:
+
+| Status           | Meaning                      | What the page does               |
+| ---------------- | ---------------------------- | -------------------------------- |
+| `OK`             | plays here                   | normal facade tile, plays inline |
+| `UNPLAYABLE`     | blocked — either cause       | tile links to YouTube instead    |
+| `ERROR`          | deleted, private, no Referer | dropped from the grid            |
+| `LOGIN_REQUIRED` | private or age restricted    | dropped from the grid            |
+| anything else    | the probe learned nothing    | treated as embeddable            |
+
+**The `Referer` header is the whole mechanism.** The verdict is per embedding
+site — that is what _"en este sitio web"_ means — so YouTube has to be told who
+is asking, and `probeEmbeddable` takes the origin as an argument for that
+reason. Without the header every video answers `ERROR` (player error 153),
+including ones that play perfectly. A query parameter does not substitute for
+it; this was tested. Verified working in both runtimes: Node at build time and
+workerd via `wrangler pages dev`.
+
+> **This replaced an oEmbed probe**, which asked `youtube.com/oembed` and read
+> `401`/`403` as blocked and `404` as gone. oEmbed answers only the first of the
+> two causes above: it returned `200` for six of the channel's fifteen videos
+> that do not in fact play in an embed. It was also unstable — a video answered
+> `401` in one run and `200` minutes later. The embed page agreed with the
+> browser on every video tested, three runs running.
 
 Three deliberate biases, all in `lib/youtube-feed.ts`, and all pushing the same
 way: **when in doubt, leave the tile alone.**
 
-- **A failed probe means "embeddable".** Guessing "no" would stop working videos
-  from playing inline; guessing "yes" costs nothing we did not already have.
-- **A bad verdict is re-checked before it counts.** Both of the channel's videos
-  answered `401` and then `200` an hour later, from the same machine, with
-  nothing changed in between. So `blocked` and `gone` each need two agreeing
-  probes, and a disagreement resolves to `embeddable`. Only the unhappy path
-  pays the extra request.
-- **A unanimous `404` is ignored entirely.** Rate limiting answers 404 across
-  the board, so believing it would empty the section — the exact failure the
-  snapshot exists to prevent. A channel losing every video at once is not worth
-  optimising for; being throttled demonstrably is.
+- **A failed or unparseable probe means "embeddable".** Guessing "no" would stop
+  working videos from playing inline; guessing "yes" costs nothing we did not
+  already have. An unrecognised status counts as unparseable — YouTube is free
+  to add one, and inventing a meaning for it is how a working video silently
+  stops playing.
+- **A bad verdict is re-checked before it counts.** `blocked` and `gone` each
+  need two agreeing probes, and a disagreement resolves to `embeddable`. The
+  embed page is steadier than oEmbed was, but steadier is not proven, and only
+  the unhappy path pays the extra request.
+- **A unanimous `ERROR` is ignored entirely.** Two things produce it: rate
+  limiting, and a `Referer` that did not survive the runtime. Believing either
+  would empty the section — the exact failure the snapshot exists to prevent.
+  This is what makes a stripped header degrade to "no probing at all" rather
+  than to a blank page.
 
 Get this wrong in the safe direction and a visitor sees YouTube's error panel,
 which is what happened before any of this existed. Get it wrong in the unsafe
@@ -134,6 +178,33 @@ To make a video play inline again, turn embedding back on in YouTube Studio —
 the video's **Detalles → Mostrar más → Permitir insertar**, or for a live
 stream, **Sala de control → Editar → Personalización**. Nothing in this
 repository can override it.
+
+### The safety net, for when the probe is wrong anyway
+
+The probe runs on a server, and a server is not the visitor. Two gaps remain
+that no amount of probing closes:
+
+- **Region.** A rights-holder block can differ by country. The build probes from
+  wherever Cloudflare built, the Function from the edge nearest the visitor —
+  neither is guaranteed to match the visitor's own answer.
+- **Time.** A tile rendered at build time is up to five minutes stale even with
+  the Function refreshing it, and a claim can be applied at any moment.
+
+So the player gets the last word too. `scripts/video-facade.ts` loads the embed
+with `enablejsapi=1` and listens for the `onError` frame YouTube posts when it
+cannot play — no YouTube script, just the documented widget handshake. On error
+the tile is rebuilt from the `link` `<template>`, so it becomes exactly the tile
+the probe would have produced, and focus moves to the link that replaced the
+play button the visitor just pressed.
+
+The error code is not inspected. `101`/`150` mean "not allowed in an embed",
+`100` "gone", `5` a player fault, `2` a bad parameter — and to someone looking
+at a tile that will not play they are one situation, with one right answer.
+
+This costs a click, so it is the fallback and not the mechanism: the probe is
+what makes the tile right _before_ anyone clicks. Expect this path to fire
+rarely. If it starts firing often, the probe is being lied to — check that the
+`Referer` still reaches YouTube.
 
 ## How embedding works — and why
 
