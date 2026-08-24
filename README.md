@@ -3,10 +3,12 @@
 Monorepo for the **Qa Ulew** TV channel — landing page and future Cloudflare
 services. Production domain: **[qa-ulew.tv](https://qa-ulew.tv)**.
 
-> **Status: scaffolding.** The structure, tooling, i18n, theming and deployment
-> path are done and verified. The visual design, logo, icons, fonts, palette and
-> real channel content are pending — every placeholder is marked `TODO` in
-> `apps/web/src/config/site.ts` and `apps/web/src/styles/tokens.css`.
+> **Status: live.** The site is in production, serving the channel's real
+> branding, palette and video feed. What remains is additive and marked `TODO`
+> in `apps/web/src/config/site.ts`: the social accounts that do not exist yet,
+> the AdSense id, and a privacy policy page before any advertising. The planned
+> 24/7 live channel is designed and costed in [docs/live.md](docs/live.md) but
+> not built.
 
 ---
 

@@ -1,6 +1,6 @@
 {
   "name": "qa-ulew",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Monorepo for Qa Ulew (qa-ulew.tv) — landing page and future Cloudflare services.",

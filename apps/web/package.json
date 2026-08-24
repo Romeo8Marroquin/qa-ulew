@@ -1,6 +1,6 @@
 {
   "name": "@qa-ulew/web",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Qa Ulew landing page (qa-ulew.tv) — Astro, deployed to Cloudflare Pages.",
