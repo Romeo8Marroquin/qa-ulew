@@ -94,18 +94,18 @@ Three rules keep this working:
 
 ## Documentation
 
-| Document                                  | Covers                                                    |
-| ----------------------------------------- | --------------------------------------------------------- |
-| [architecture.md](docs/architecture.md)   | Repo layout, technology choices, conventions              |
-| [deployment.md](docs/deployment.md)       | **Exact Cloudflare Pages settings**, domain, env vars     |
-| [design.md](docs/design.md)               | Applying the real palette, fonts and logo; theming        |
-| [accessibility.md](docs/accessibility.md) | WCAG 2.2 AA record, contrast figures, OS preferences      |
-| [testing.md](docs/testing.md)             | Vitest setup, the 100% coverage gate, lint rules          |
-| [i18n.md](docs/i18n.md)                   | Using translations; adding a language                     |
-| [content.md](docs/content.md)             | Videos, embeds, social links, Cloudflare Stream migration |
-| [live.md](docs/live.md)                   | vMix → Cloudflare Stream live plan, compatibility, costs  |
-| [seo.md](docs/seo.md)                     | Metadata, share cards, search engines, analytics, upkeep  |
-| [ads.md](docs/ads.md)                     | Ad strategy, AdSense vs. custom, prerequisites            |
+| Document                                  | Covers                                                     |
+| ----------------------------------------- | ---------------------------------------------------------- |
+| [architecture.md](docs/architecture.md)   | Repo layout, technology choices, conventions               |
+| [deployment.md](docs/deployment.md)       | **Exact Cloudflare Pages settings**, domain, env vars      |
+| [design.md](docs/design.md)               | Applying the real palette, fonts and logo; theming         |
+| [accessibility.md](docs/accessibility.md) | WCAG 2.2 AA record, contrast figures, OS preferences       |
+| [testing.md](docs/testing.md)             | Vitest setup, the 100% coverage gate, lint rules           |
+| [i18n.md](docs/i18n.md)                   | Using translations; adding a language                      |
+| [content.md](docs/content.md)             | Videos, embeds, social links, Cloudflare Stream migration  |
+| [live.md](docs/live.md)                   | **Planned:** 24/7 live-only channel — design, costs, steps |
+| [seo.md](docs/seo.md)                     | Metadata, share cards, search engines, analytics, upkeep   |
+| [ads.md](docs/ads.md)                     | Ad strategy, AdSense vs. custom, prerequisites             |
 
 ---
 
@@ -132,8 +132,9 @@ troubleshooting table — is in [docs/deployment.md](docs/deployment.md).
 
 ## What's built
 
-- Static Astro site, ~2.5 KB of JavaScript total (one bundle, measured from
-  `dist/`)
+- Static Astro site, **~12.1 KB of JavaScript, ~4.1 KB gzipped** (measured from
+  `dist/` — inline scripts included; see
+  [docs/testing.md](docs/testing.md#measuring-the-javascript-budget))
 - Light/dark theming that follows the OS, with a manual override and no
   flash of the wrong theme on load
 - Spanish (Guatemalan _voseo_) with type-safe translations; adding a language
@@ -144,7 +145,7 @@ troubleshooting table — is in [docs/deployment.md](docs/deployment.md).
 - Inert ad slots with placement decided and layout space reserved
 - SEO: canonical URLs, Open Graph, Twitter cards, sitemap, `robots.txt`, and
   automatic `noindex` on preview deploys
-- **289 tests at 100% coverage** of every line of TypeScript the site ships,
+- **362 tests at 100% coverage** of every line of TypeScript the site ships,
   enforced by `pnpm verify` — plus ESLint with a static accessibility gate. See
   [docs/testing.md](docs/testing.md)
 - Accessibility: **WCAG 2.2 AA**, verified — named landmarks, a described hero
@@ -155,9 +156,7 @@ troubleshooting table — is in [docs/deployment.md](docs/deployment.md).
 ## What's pending
 
 - Designs, logo, icons, fonts, palette → `tokens.css`, `favicon.svg`, `Header.astro`
-- Real social URLs and featured videos → `config/site.ts`
-- `public/og-default.png` (1200×630) — referenced but not yet created
-- Contact email → `config/site.ts`
+- Remaining social URLs (TikTok, Instagram, WhatsApp) → `config/site.ts`
 - Privacy policy page — required before any advertising
 
 ## License

@@ -116,6 +116,13 @@
   /* --- Colour: LIGHT (default) ----------------------------------------
    * Warm off-white paper, near-black ink. Never pure #fff on #000 — the small
    * amount of warmth is what separates "editorial" from "default browser".
+   *
+   * `--qa-bg` IS DUPLICATED OUTSIDE THIS FILE, in exactly one place: the two
+   * `<meta name="theme-color">` tags in `BaseHead.astro`, which colour the
+   * browser chrome. That tag only accepts a literal — a CSS variable there is
+   * ignored — so it is the one unavoidable exception to "no raw colour outside
+   * tokens.css". Change `--qa-bg` in either block below and the matching meta
+   * has to change with it, or the phone's address bar stops matching the page.
    */
   --qa-bg: #fbfaf8;
   --qa-bg-subtle: #f2f0ec;
