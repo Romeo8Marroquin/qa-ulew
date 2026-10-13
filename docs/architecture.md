@@ -67,14 +67,15 @@ from silently satisfying another's import.
 
 ## JavaScript budget
 
-The site currently ships **~12.1 KB of JavaScript, ~4.1 KB gzipped**, across the
+The site currently ships **~19.6 KB of JavaScript, ~6.3 KB gzipped**, across the
 home page. Everything else is HTML and CSS.
 
 | Where                  | Bytes | What                                                                                 |
 | ---------------------- | ----: | ------------------------------------------------------------------------------------ |
-| Inlined in the HTML    |  7067 | pre-paint theme, theme toggle, header + mobile menu, scroll reveal, custom scrollbar |
-| `video-facade` chunk   |  1975 | video facades, block fallback, tile cloning                                          |
-| `index.astro` chunk    |   836 | the video-feed refresh                                                               |
+| Inlined in the HTML    |  8348 | pre-paint theme, theme toggle, header + mobile menu, scroll reveal, custom scrollbar |
+| `video-facade` chunk   |  4314 | video facades, block fallback, tile cloning, the details line (`lib/video-meta.ts`)  |
+| `video-list` chunk     |  3036 | "ver más": collapse, leftover row, entrance, morph, one smooth scroll, status        |
+| `index.astro` chunk    |  1326 | the video-feed refresh: per-tile reconciliation, relative dates                      |
 | Astro prefetch runtime |  2488 | from `prefetch.prefetchAll`, not our code                                            |
 
 Measure it with the script in [testing.md](./testing.md#measuring-the-javascript-budget)
@@ -85,12 +86,17 @@ number.
 Keep it that way. Before adding a client-side dependency, check whether the
 thing can be done at build time or with CSS.
 
-The refresh (`scripts/video-feed.ts`, 836 B) is the one thing here that could
+The refresh (`scripts/video-feed.ts`, 1326 B) is the one thing here that could
 _not_ be, and it is worth reading as the standard for when to spend the budget:
 the grid is baked at deploy time, so without it a deleted video keeps its tile
-until someone happens to redeploy. It degrades to nothing — no fetch on pages
-without a grid, no DOM work when the answer matches, and any failure leaves the
-build-time HTML untouched.
+until someone happens to redeploy, and a live stream never shows as live. It
+degrades to nothing — no fetch on pages without a list, no DOM work for a tile
+that has not changed, and any failure leaves the build-time HTML untouched.
+
+The ~4 KB added with the two lists buys live state, relative dates, view
+counts kept current and "ver más". None of it could be done at build time: the
+page is static, and every one of those is about _now_. `Intl` does all the
+formatting, so no date or number library was needed.
 
 That code lives in **`src/scripts/`**, one module per component, and the
 component carries only an import:
@@ -132,7 +138,7 @@ The single exception is the video grid, which cannot be correct at build time
 because YouTube changes without a deploy:
 
 ```
-functions/api/videos.ts ─→ /api/videos ─→ scripts/video-feed.ts ─→ the grid
+functions/api/videos.ts ─→ /api/videos ─→ scripts/video-feed.ts ─→ both lists
 ```
 
 Both ends share `lib/youtube-feed.ts` so the build and the runtime cannot

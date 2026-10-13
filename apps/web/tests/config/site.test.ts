@@ -12,8 +12,28 @@ import {
   activeSocialLinks,
   adsEnabled,
   streamEnabled,
+  youtubeChannelUrl,
   youtubeFeedEnabled,
 } from '~/config/site';
+
+describe('video list sizes', () => {
+  it('never asks for more than a feed can return', () => {
+    // 15 is YouTube's ceiling for an Atom feed. A larger limit would not show
+    // more videos; it would only make the number lie.
+    expect(YOUTUBE.limit).toBeLessThanOrEqual(15);
+  });
+
+  it('reveals in batches that end on a full row', () => {
+    // Two columns on a tablet, three on a desktop.
+    expect(YOUTUBE.step % 2).toBe(0);
+    expect(YOUTUBE.step % 3).toBe(0);
+  });
+
+  it('reaches the whole list in one press', () => {
+    // "So the button is not pressed several times."
+    expect(YOUTUBE.initial + YOUTUBE.step).toBeGreaterThanOrEqual(YOUTUBE.limit);
+  });
+});
 
 describe('activeSocialLinks', () => {
   it('returns only the platforms with a URL', () => {
@@ -53,6 +73,18 @@ describe('feature flags', () => {
   it('reports the YouTube feed as enabled while a channel id is set', () => {
     expect(youtubeFeedEnabled()).toBe(YOUTUBE.channelId !== '');
     expect(youtubeFeedEnabled()).toBe(true);
+  });
+
+  it('links "ver todo" to the channel, and to nothing without a handle', () => {
+    expect(youtubeChannelUrl()).toBe('https://www.youtube.com/@QaUlew');
+
+    const handle = YOUTUBE.handle;
+    YOUTUBE.handle = '';
+    try {
+      expect(youtubeChannelUrl()).toBe('');
+    } finally {
+      YOUTUBE.handle = handle;
+    }
   });
 
   it('reports Cloudflare Stream as disabled while no customer code is set', () => {

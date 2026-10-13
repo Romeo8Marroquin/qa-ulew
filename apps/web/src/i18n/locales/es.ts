@@ -34,7 +34,11 @@ export const es = {
   // label ("Inicio", as they did) the landmark list becomes three identical
   // entries and stops being a way to navigate at all.
   'nav.home': 'Inicio',
-  'nav.videos': 'Videos',
+  // One link per video list, named for what it holds rather than "Videos" —
+  // two sections of videos behind one word would make the second unreachable
+  // from the menu.
+  'nav.recent': 'Recientes',
+  'nav.popular': 'Más vistos',
   'nav.about': 'Nosotros',
   'nav.contact': 'Contacto',
   'nav.primaryNav': 'Navegación principal',
@@ -101,6 +105,32 @@ export const es = {
    */
   'videos.onlyOnPlatform': 'Este video solo se puede ver en {provider}',
   'a11y.videos.openOnPlatform': 'Ver "{title}" en {provider}',
+
+  'videos.popular.title': 'Lo más visto',
+  'videos.popular.subtitle': 'El contenido que más ha visto nuestra gente.',
+  /** The badge on a thumbnail that is broadcasting now. Short: it sits on the image. */
+  'videos.live': 'En vivo',
+  /** Replaces the date under the title while the stream is on air. */
+  'videos.liveNow': 'Transmitiendo ahora',
+  /**
+   * The "show more" button. Two forms because the count can be one, and
+   * `Intl.PluralRules` picks between them in the browser — the button's count
+   * changes as tiles are revealed, so it cannot be fixed at build time.
+   */
+  'videos.more.one': 'Ver {count} video más',
+  'videos.more.other': 'Ver {count} videos más',
+  'videos.all': 'Ver todo en {provider}',
+  /**
+   * Announced after "ver más" — focus moves to the first new tile, and this
+   * says how far through the list that is.
+   */
+  'a11y.videos.showing': 'Mostrando {shown} de {total} videos',
+  /**
+   * Precedes the view count, which is shown with an eye icon and no word. The
+   * icon is hidden from assistive tech, so without this a screen reader would
+   * announce a bare number.
+   */
+  'a11y.videos.views': 'Visualizaciones:',
 
   // --- About ------------------------------------------------------------
   'about.title': 'Sobre Qa Ulew',

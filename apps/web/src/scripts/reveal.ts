@@ -38,14 +38,51 @@ if (!reducedMotion && 'IntersectionObserver' in window) {
       }
     },
     {
-      // Start slightly before the element reaches the fold, so it finishes
-      // arriving as it becomes properly visible.
+      // Wait until the element is a little way up the screen — past the
+      // bottom 12% — so the visitor sees it arrive rather than finding it
+      // already there by the time they look.
       rootMargin: '0px 0px -12% 0px',
       threshold: 0.05,
     },
   );
 
   items.forEach((item) => observer.observe(item));
+
+  /**
+   * A resize is not a scroll, so it does not get the entrance.
+   *
+   * Dragging a window wider reflows the page under a visitor who has not
+   * moved, and content lands in that bottom 12% where it waits, blank, for an
+   * observer that only cares about scrolling. Measured: blank blocks on screen
+   * for two thirds of a drag across the about section. It read as the layout
+   * breaking and then recovering.
+   *
+   * So after any resize, whatever is still hidden but on screen is simply
+   * shown, with no transition. Content that moved is content that is there.
+   * Once per frame however fast the resize events come, and nothing below or
+   * above the screen is touched: those still arrive as the visitor scrolls.
+   */
+  let queued = false;
+  window.addEventListener('resize', () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => {
+      queued = false;
+      for (const item of document.querySelectorAll<HTMLElement>('[data-reveal-hidden]')) {
+        const box = item.getBoundingClientRect();
+        if (box.height === 0 || box.bottom <= 0 || box.top >= window.innerHeight) continue;
+
+        item.style.transition = 'none';
+        item.setAttribute('data-revealed', '');
+        item.removeAttribute('data-reveal-hidden');
+        // Commit the shown state before transitions come back, or removing the
+        // override would animate it after all.
+        void getComputedStyle(item).opacity;
+        item.style.removeProperty('transition');
+        observer.unobserve(item);
+      }
+    });
+  });
 }
 
 /*

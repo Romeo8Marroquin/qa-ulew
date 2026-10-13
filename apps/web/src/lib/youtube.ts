@@ -1,43 +1,77 @@
 import { SITE, YOUTUBE, type FeaturedVideo } from '~/config/site';
 import snapshot from '~/data/youtube-feed.json';
-import { applyVerdicts, type FeedVideo, parseFeed, probeEmbeddable } from '~/lib/youtube-feed';
+import {
+  BROWSER_UA,
+  buildCatalog,
+  type CatalogVideo,
+  channelFeedUrl,
+  type FeedVideo,
+  mergePopular,
+  parseFeed,
+  playlistFeedUrl,
+  popularPlaylists,
+  probeEmbeddable,
+} from '~/lib/youtube-feed';
 
 /**
- * Build-time fetch of the channel's public YouTube Atom feed.
+ * Build-time fetch of the channel's public YouTube Atom feeds.
  *
  * Runs during `astro build`, never in the browser. The result is baked into
  * static HTML, so the page paints a correct video grid with no JavaScript and
  * there is no API key anywhere in the pipeline.
  *
- * It is baked, not final: `functions/api/videos.ts` re-fetches the same feed on
- * request and `src/scripts/video-feed.ts` reconciles the grid after load, so a
- * video deleted or a stream started since the last deploy is corrected for
- * anyone with JavaScript. This module is what everyone else sees, and what the
- * first paint shows before that lands.
+ * It is baked, not final: `functions/api/videos.ts` re-fetches the same feeds
+ * on request and `src/scripts/video-feed.ts` reconciles the grids after load,
+ * so a video deleted, a stream started or a view count grown since the last
+ * deploy is corrected for anyone with JavaScript. This module is what everyone
+ * else sees, and what the first paint shows before that lands.
  *
  * Design constraint that shapes this whole file: **a content fetch must never
  * be able to block a deploy.** If YouTube is slow, rate-limiting the build
  * runner, or briefly down, the build has to carry on and ship the manually
  * curated videos instead. Every failure path below returns a list rather than
  * throwing.
+ *
+ * WHY NO "EN VIVO" BADGE AT BUILD TIME
+ *
+ * The page is static. A badge baked during a broadcast would still say "en
+ * vivo" days later to anyone whose refresh did not land — JavaScript off, or
+ * the Function unavailable. Not highlighting a stream is a small loss; claiming
+ * one is on air when it is not is a wrong page. So live state comes only from
+ * the Function, which answers with what is true now.
  */
 
-const FEED_URL = 'https://www.youtube.com/feeds/videos.xml?channel_id=';
 const TIMEOUT_MS = 8000;
 
-/**
- * The committed snapshot, used when the live feed is unavailable.
- *
- * Refresh it with `pnpm --filter @qa-ulew/web content:youtube`.
- */
-function fromSnapshot(): FeedVideo[] {
-  return (snapshot.videos as FeedVideo[]).slice(0, YOUTUBE.limit);
+interface SnapshotVideo {
+  id: string;
+  title: string;
+  published: string;
+  description?: string;
+  views?: number | null;
 }
 
 /**
- * Latest entries from the configured channel, newest first.
+ * The committed snapshot, used when a live feed is unavailable.
  *
- * Tries the live feed, falls back to the committed snapshot, and never throws.
+ * Refresh it with `pnpm --filter @qa-ulew/web content:youtube`. Snapshots
+ * written before view counts or the popular list existed lack them, hence the
+ * defaults.
+ */
+function fromSnapshot(list: SnapshotVideo[] | undefined): FeedVideo[] {
+  return (list ?? []).slice(0, YOUTUBE.limit).map((video) => ({
+    id: video.id,
+    title: video.title,
+    published: video.published,
+    description: video.description ?? '',
+    views: video.views ?? null,
+  }));
+}
+
+const snapshotLists = snapshot as { videos?: SnapshotVideo[]; popular?: SnapshotVideo[] };
+
+/**
+ * One feed, or `null` on any failure. Never throws.
  *
  * The fallback is not paranoia. YouTube's public feed is rate limited, and when
  * it throttles it answers **404** rather than 429 — indistinguishable from a
@@ -45,49 +79,97 @@ function fromSnapshot(): FeedVideo[] {
  * 404'd from the same machine half an hour later. Cloudflare Pages builds from
  * shared IPs, so they are throttled more often, not less.
  *
- * Without the snapshot, one unlucky build silently deploys an empty videos
- * section. With it, the worst case is videos from the last refresh.
+ * `expectMissing` is for a feed that may legitimately not exist — a popular
+ * playlist the channel does not have. Its 404 is then routine, and a warning
+ * on every build would teach whoever reads the log to ignore the real ones.
  */
-async function fetchFeed(): Promise<FeedVideo[]> {
+async function fetchFeed(
+  url: string,
+  name: string,
+  expectMissing = false,
+): Promise<FeedVideo[] | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const response = await fetch(`${FEED_URL}${encodeURIComponent(YOUTUBE.channelId)}`, {
+    const response = await fetch(url, {
       signal: controller.signal,
-      headers: {
-        accept: 'application/atom+xml,application/xml',
-        // A browser UA measurably reduces how often the feed throttles.
-        'user-agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36',
-      },
+      headers: { accept: 'application/atom+xml,application/xml', 'user-agent': BROWSER_UA },
     });
 
     if (!response.ok) {
-      const fallback = fromSnapshot();
-      console.warn(
-        `[youtube] feed returned ${response.status} (rate limiting answers 404); ` +
-          `using snapshot of ${fallback.length} video(s)`,
-      );
-      return fallback;
+      if (!(expectMissing && response.status === 404)) {
+        console.warn(
+          `[youtube] ${name} feed returned ${response.status} (rate limiting answers 404)`,
+        );
+      }
+      return null;
     }
 
-    const live = parseFeed(await response.text(), YOUTUBE.limit);
-    return live.length === 0 ? fromSnapshot() : live;
+    const videos = parseFeed(await response.text(), YOUTUBE.limit);
+    return videos.length === 0 ? null : videos;
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
-    const fallback = fromSnapshot();
-    console.warn(
-      `[youtube] feed unavailable (${reason}); using snapshot of ${fallback.length} video(s)`,
-    );
-    return fallback;
+    console.warn(`[youtube] ${name} feed unavailable (${reason})`);
+    return null;
   } finally {
     clearTimeout(timeout);
   }
 }
 
 /**
- * Latest videos, with each one checked against the embed page before it is rendered.
+ * Latest uploads, newest first: the live feed, else the snapshot.
+ *
+ * Without the snapshot, one unlucky build silently deploys an empty videos
+ * section. With it, the worst case is videos from the last refresh.
+ */
+async function fetchRecent(): Promise<FeedVideo[]> {
+  const live = await fetchFeed(channelFeedUrl(YOUTUBE.channelId), 'uploads');
+  if (live) return live;
+
+  const fallback = fromSnapshot(snapshotLists.videos);
+  console.warn(`[youtube] using snapshot of ${fallback.length} recent video(s)`);
+  return fallback;
+}
+
+/**
+ * Most viewed, from whichever popular playlists answer.
+ *
+ * A playlist that does not exist for this channel 404s exactly like a
+ * throttled one, so one failing is normal and says nothing. Only when none
+ * answers does the snapshot stand in.
+ */
+async function fetchPopular(): Promise<FeedVideo[]> {
+  const lists = await Promise.all(
+    popularPlaylists(YOUTUBE.channelId).map((id) => fetchFeed(playlistFeedUrl(id), id, true)),
+  );
+  const found = lists.filter((list): list is FeedVideo[] => list !== null);
+  if (found.length > 0) return mergePopular(found, YOUTUBE.limit);
+
+  const fallback = fromSnapshot(snapshotLists.popular);
+  console.warn(`[youtube] using snapshot of ${fallback.length} popular video(s)`);
+  return fallback;
+}
+
+const toFeatured = (video: CatalogVideo): FeaturedVideo => ({
+  provider: 'youtube',
+  id: video.id,
+  title: video.title,
+  // Unprobed counts as playable. The build probes everything, so this is the
+  // type being honest rather than a case that arises.
+  embeddable: video.embeddable !== false,
+  published: video.published,
+  views: video.views,
+});
+
+export interface VideoCatalog {
+  recent: FeaturedVideo[];
+  popular: FeaturedVideo[];
+}
+
+/**
+ * Both lists, with each video checked against the embed page before it is
+ * rendered.
  *
  * The probe answers two questions the Atom feed cannot:
  *
@@ -101,24 +183,26 @@ async function fetchFeed(): Promise<FeedVideo[]> {
  *    link to YouTube, which works.
  *
  * Probes are failure-tolerant on purpose — see `probeEmbeddable` for a single
- * bad answer and `applyVerdicts` for a unanimously bad one — so this cannot
+ * bad answer and `buildCatalog` for a unanimously bad one — so this cannot
  * turn a working build into an empty page. The worst it can do is leave a tile
  * exactly as it would have been without the check.
  */
-export async function fetchLatestVideos(): Promise<FeaturedVideo[]> {
-  if (!YOUTUBE.channelId) return [];
+export async function fetchVideoCatalog(): Promise<VideoCatalog> {
+  if (!YOUTUBE.channelId) return { recent: [], popular: [] };
 
-  const videos = await fetchFeed();
-  // `SITE.url` is the referrer the probe presents: the verdict is per embedding
-  // site, so asking as anyone else answers a different question.
-  const verdicts = await Promise.all(videos.map((video) => probeEmbeddable(video.id, SITE.url)));
+  const [recent, popular] = await Promise.all([fetchRecent(), fetchPopular()]);
 
-  return applyVerdicts(videos, verdicts).map((video) => ({
-    provider: 'youtube' as const,
-    id: video.id,
-    title: video.title,
-    embeddable: video.embeddable,
-  }));
+  const catalog = await buildCatalog({
+    recent,
+    popular,
+    live: null,
+    limit: YOUTUBE.limit,
+    // `SITE.url` is the referrer the probe presents: the verdict is per
+    // embedding site, so asking as anyone else answers a different question.
+    probe: (id) => probeEmbeddable(id, SITE.url),
+  });
+
+  return { recent: catalog.recent.map(toFeatured), popular: catalog.popular.map(toFeatured) };
 }
 
 /**

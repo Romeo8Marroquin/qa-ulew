@@ -22,7 +22,41 @@ export interface FeedVideo {
   published: string;
   /** Used for VideoObject structured data, which requires a description. */
   description: string;
+  /** `media:statistics`. `null` when the entry carries none, which is not zero. */
+  views: number | null;
 }
+
+const FEED_URL = 'https://www.youtube.com/feeds/videos.xml';
+
+/** The channel's uploads, newest first by `published`. */
+export const channelFeedUrl = (channelId: string): string =>
+  `${FEED_URL}?channel_id=${encodeURIComponent(channelId)}`;
+
+export const playlistFeedUrl = (playlistId: string): string =>
+  `${FEED_URL}?playlist_id=${encodeURIComponent(playlistId)}`;
+
+/**
+ * YouTube's own "popular" playlists for a channel, as Atom feeds.
+ *
+ * Every channel has a family of auto-generated playlists named by swapping the
+ * `UC` of its id for a prefix. Two of them are the channel's most viewed
+ * uploads, already sorted by views, and they are readable through the same
+ * keyless feed as the uploads — which is what makes "lo más visto" possible
+ * without an API key:
+ *
+ *   UULP  popular videos
+ *   UUPV  popular live streams
+ *
+ * Both are needed. This channel uploads almost nothing but live streams, so
+ * UULP answers 404 for it today while UUPV holds everything; a channel that
+ * also uploads ordinary videos has both. The shorts equivalent (UUPS) is left
+ * out on purpose: a vertical short cropped into a 16:9 tile looks broken.
+ *
+ * A playlist that does not exist answers 404 — the same status as throttling —
+ * so callers must treat each one as optional and merge whatever arrives.
+ */
+export const popularPlaylists = (channelId: string): string[] =>
+  channelId.startsWith('UC') ? ['UULP', 'UUPV'].map((prefix) => prefix + channelId.slice(2)) : [];
 
 /** Atom escapes these; titles routinely contain apostrophes and ampersands. */
 export function decodeEntities(value: string): string {
@@ -52,6 +86,7 @@ export function parseFeed(xml: string, limit: number): FeedVideo[] {
     const title = entry.match(/<title>([\s\S]*?)<\/title>/)?.[1];
     const published = entry.match(/<published>([^<]+)<\/published>/)?.[1];
     const description = entry.match(/<media:description>([\s\S]*?)<\/media:description>/)?.[1];
+    const views = entry.match(/<media:statistics\s+views="(\d+)"/)?.[1];
 
     if (!id || !title) continue;
 
@@ -60,6 +95,7 @@ export function parseFeed(xml: string, limit: number): FeedVideo[] {
       title: decodeEntities(title.trim()),
       published: published ?? '',
       description: description ? decodeEntities(description.trim()).slice(0, 300) : '',
+      views: views === undefined ? null : Number(views),
     });
 
     if (videos.length >= limit) break;
@@ -68,17 +104,162 @@ export function parseFeed(xml: string, limit: number): FeedVideo[] {
   return videos;
 }
 
+/**
+ * One "most viewed" list out of several popular playlists.
+ *
+ * A video can sit in more than one of them, and each feed carries its own
+ * snapshot of the count — so the higher one wins rather than the first seen.
+ * The sort is stable, which keeps YouTube's own order between equal counts.
+ */
+export function mergePopular(lists: FeedVideo[][], limit: number): FeedVideo[] {
+  const byId = new Map<string, FeedVideo>();
+  for (const video of lists.flat()) {
+    const seen = byId.get(video.id);
+    if (!seen || (video.views ?? -1) > (seen.views ?? -1)) byId.set(video.id, video);
+  }
+  return [...byId.values()].sort((a, b) => (b.views ?? -1) - (a.views ?? -1)).slice(0, limit);
+}
+
+/** The stream a channel is broadcasting right now. */
+export interface LiveVideo {
+  id: string;
+  title: string;
+}
+
+/**
+ * Read the live stream out of a channel's `/live` page.
+ *
+ * WHY THE FEED CANNOT ANSWER THIS
+ *
+ * The Atom feed has no notion of "live", and it orders by `published` — which
+ * for a stream is when the broadcast was *created*, not when it went on air. A
+ * stream scheduled on Monday and started on Friday sits under everything
+ * uploaded in between. Measured on a channel that was live at the time: its
+ * stream was sixth in its own feed. That is the bug where the site showed the
+ * previous video while the channel was on air.
+ *
+ * `/channel/<id>/live` renders the watch page of the current broadcast, and its
+ * player bootstrap carries `"videoDetails":{"videoId":…,"isLive":true}`. A
+ * stream that is only *scheduled* has `isUpcoming` instead and is ignored, as
+ * is an ended one: a tile labelled "en vivo" that is not is worse than none.
+ *
+ * The channel id is checked too, so a page that resolves to someone else's
+ * stream — an embed of another channel, a redirect — cannot put it at the top
+ * of ours.
+ */
+export function parseLive(html: string, channelId: string): LiveVideo | null {
+  const start = html.indexOf('"videoDetails":{');
+  if (start < 0) return null;
+
+  // The object ends somewhere after `channelId`, which follows a keywords array
+  // of unbounded length; `shortDescription` is the next field after it.
+  const end = html.indexOf('"shortDescription"', start);
+  const details = html.slice(start, end < 0 ? start + 20_000 : end);
+
+  const id = /^"videoDetails":\{"videoId":"([\w-]{11})"/.exec(details)?.[1];
+  if (!id) return null;
+  if (!details.includes('"isLive":true')) return null;
+  if (!details.includes(`"channelId":"${channelId}"`)) return null;
+
+  const rawTitle = /"title":"((?:[^"\\]|\\.)*)"/.exec(details)?.[1];
+  if (!rawTitle) return null;
+
+  try {
+    const title = JSON.parse(`"${rawTitle}"`) as string;
+    return title.trim() ? { id, title: title.trim() } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A browser UA measurably reduces how often YouTube throttles. */
+export const BROWSER_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36';
+
+/** Past this, the page is not the shape we know and reading on is waste. */
+const LIVE_PAGE_LIMIT = 4_000_000;
+
+/**
+ * Ask YouTube whether the channel is on air, reading as little as possible.
+ *
+ * The page is ~1.3 MB and the part that matters sits ~800 KB in. On the Pages
+ * Function that is not free — the free plan allows 10 ms of CPU per request —
+ * so the body is streamed and abandoned at the first point it can answer:
+ *
+ * 1. The `<link rel="canonical">` arrives first. When the channel is not on
+ *    air it points at the channel itself, and there is nothing more to read.
+ * 2. Otherwise read on until the player's `videoDetails` object is complete.
+ *
+ * Each chunk is searched from where the previous search stopped, not from the
+ * start, so the cost stays linear in what was read.
+ *
+ * If the canonical tag ever changes shape, step 1 simply never fires and the
+ * whole page is read: slower, never wrong. Every failure resolves to `null` —
+ * "not live" is what the page showed before any of this existed.
+ */
+export async function fetchLive(
+  channelId: string,
+  fetchImpl: typeof fetch = fetch,
+  signal?: AbortSignal,
+): Promise<LiveVideo | null> {
+  try {
+    const response = await fetchImpl(
+      `https://www.youtube.com/channel/${encodeURIComponent(channelId)}/live`,
+      { signal, headers: { 'user-agent': BROWSER_UA, 'accept-language': 'es' } },
+    );
+    if (!response.ok || !response.body) return null;
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    const CANONICAL = '<link rel="canonical" href="';
+    let html = '';
+    let scanned = 0;
+    let canonicalAt = -1;
+    let canonicalChecked = false;
+    let detailsAt = -1;
+
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        html += decoder.decode(value, { stream: true });
+
+        // Search only what arrived, plus a marker's length behind the boundary
+        // in case one straddles two chunks.
+        const from = Math.max(0, scanned - 64);
+        scanned = html.length;
+
+        if (canonicalAt < 0) canonicalAt = html.indexOf(CANONICAL, from);
+        if (canonicalAt >= 0 && !canonicalChecked) {
+          // The href may still be arriving; judge it only once it is closed.
+          const close = html.indexOf('"', canonicalAt + CANONICAL.length);
+          if (close >= 0) {
+            if (!html.slice(canonicalAt, close).includes('/watch?v=')) return null;
+            canonicalChecked = true;
+          }
+        }
+
+        if (detailsAt < 0) detailsAt = html.indexOf('"videoDetails":{', from);
+        if (detailsAt >= 0 && html.indexOf('"shortDescription"', Math.max(detailsAt, from)) >= 0) {
+          break;
+        }
+        if (html.length > LIVE_PAGE_LIMIT) break;
+      }
+    } finally {
+      // Stop the download. Nothing after this point is read.
+      reader.cancel().catch(() => {});
+    }
+
+    return parseLive(html, channelId);
+  } catch {
+    return null;
+  }
+}
+
 /** What a probe concluded about a video. */
 export type Embeddability = 'embeddable' | 'blocked' | 'gone';
 
 const EMBED_URL = 'https://www.youtube-nocookie.com/embed/';
-
-/**
- * A browser UA measurably reduces how often YouTube throttles. Same string the
- * feed fetch uses, for the same reason.
- */
-const UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36';
 
 /**
  * Ask YouTube whether a video may be played *here*, before we try.
@@ -118,7 +299,7 @@ const UA =
  * perfectly. A query parameter does not substitute for it; this was tested.
  *
  * That failure mode is safe rather than silent: a stripped header makes every
- * verdict `gone`, and `applyVerdicts` discards a unanimous `gone` and leaves
+ * verdict `gone`, and `buildCatalog` discards a unanimous `gone` and leaves
  * every tile embeddable — exactly the behaviour before any probing existed.
  *
  * Anything else — a timeout, a 429, a response we cannot parse — is treated as
@@ -132,7 +313,7 @@ async function probeOnce(
 ): Promise<Embeddability> {
   try {
     const response = await fetchImpl(`${EMBED_URL}${encodeURIComponent(id)}`, {
-      headers: { referer: origin, 'user-agent': UA, 'accept-language': 'es' },
+      headers: { referer: origin, 'user-agent': BROWSER_UA, 'accept-language': 'es' },
     });
 
     if (!response.ok) return 'embeddable';
@@ -187,13 +368,70 @@ export async function probeEmbeddable(
   return second === first ? first : 'embeddable';
 }
 
-/** A feed entry once its playability verdict has been applied. */
-export interface ProbedVideo extends FeedVideo {
-  embeddable: boolean;
+/** A feed entry once its live state and playability verdict are known. */
+export interface CatalogVideo extends FeedVideo {
+  live: boolean;
+  /**
+   * `undefined` means "not probed", which is not the same as "embeddable": the
+   * Pages Function probes within a budget, and a client that already shows a
+   * tile for this video should keep the shape it has rather than be told a
+   * guess. See `buildCatalog`.
+   */
+  embeddable?: boolean;
+}
+
+export interface Catalog {
+  recent: CatalogVideo[];
+  popular: CatalogVideo[];
+}
+
+export interface CatalogInput {
+  /** Newest first, as the uploads feed returns them. */
+  recent: FeedVideo[];
+  /** Most viewed first; see `mergePopular`. */
+  popular: FeedVideo[];
+  live: LiveVideo | null;
+  /** Longest either list may be. */
+  limit: number;
+  probe: (id: string) => Promise<Embeddability>;
+  /**
+   * How many distinct videos to probe, most visible first. Each probe is a
+   * subrequest, and the Pages Function's free plan allows 50 per invocation;
+   * the build has no such limit and passes `Infinity`.
+   */
+  budget?: number;
 }
 
 /**
- * Combine entries with their verdicts: drop what is gone, mark what is blocked.
+ * Put the live stream first and flag it.
+ *
+ * It is usually already in the feed — just in the wrong place, for the reason
+ * `parseLive` explains — and is moved rather than duplicated. When it is not
+ * (the feed lags YouTube by minutes), it is added from what the live page said.
+ */
+function pinLive(recent: FeedVideo[], live: LiveVideo | null, limit: number): CatalogVideo[] {
+  const flagged = recent.map((video) => ({ ...video, live: false }));
+  if (!live) return flagged;
+
+  const inFeed = recent.find((video) => video.id === live.id);
+  const head: CatalogVideo = inFeed
+    ? { ...inFeed, live: true }
+    : { ...live, published: '', description: '', views: null, live: true };
+
+  return [head, ...flagged.filter((video) => video.id !== live.id)].slice(0, limit);
+}
+
+/**
+ * Both lists, live-ordered and probed, ready to render.
+ *
+ * Probes are shared: a video in both lists is asked about once, and the order
+ * is the order a visitor meets them — the recent list first, then the most
+ * viewed. Whatever falls outside `budget` is returned with `embeddable`
+ * undefined; the player's own error report (`scripts/video-facade.ts`) is the
+ * net under those.
+ *
+ * The live stream is never dropped as `gone`. We have just watched it be on
+ * air, and the embed page is the one with an opinion about region and Referer.
  *
  * IF EVERY PROBE SAYS "GONE", BELIEVE NONE OF THEM
  *
@@ -218,14 +456,35 @@ export interface ProbedVideo extends FeedVideo {
  * throttled build.
  *
  * A channel really losing every video at once is not a case worth optimising
- * for. Being rate limited demonstrably is.
+ * for. Being rate limited demonstrably is. Unanimity is judged before the live
+ * exception, or a single live stream would outvote every throttled probe.
  */
-export function applyVerdicts(videos: FeedVideo[], verdicts: Embeddability[]): ProbedVideo[] {
-  const usable = verdicts.some((verdict) => verdict !== 'gone');
-  if (!usable) return videos.map((video) => ({ ...video, embeddable: true }));
+export async function buildCatalog(input: CatalogInput): Promise<Catalog> {
+  const recent = pinLive(input.recent, input.live, input.limit);
+  const liveId = input.live?.id;
+  const popular = input.popular
+    .slice(0, input.limit)
+    .map((video) => ({ ...video, live: video.id === liveId }));
 
-  return videos
-    .map((video, index) => ({ video, verdict: verdicts[index] ?? 'embeddable' }))
-    .filter(({ verdict }) => verdict !== 'gone')
-    .map(({ video, verdict }) => ({ ...video, embeddable: verdict === 'embeddable' }));
+  const ids = [...new Set([...recent, ...popular].map((video) => video.id))].slice(
+    0,
+    input.budget ?? Infinity,
+  );
+  const verdicts = new Map(
+    await Promise.all(ids.map(async (id) => [id, await input.probe(id)] as const)),
+  );
+
+  const usable = [...verdicts.values()].some((verdict) => verdict !== 'gone');
+  if (liveId && verdicts.get(liveId) === 'gone') verdicts.set(liveId, 'embeddable');
+
+  const apply = (videos: CatalogVideo[]): CatalogVideo[] =>
+    videos.flatMap((video): CatalogVideo[] => {
+      const verdict = verdicts.get(video.id);
+      if (verdict === undefined) return [{ ...video, embeddable: undefined }];
+      if (!usable) return [{ ...video, embeddable: true }];
+      if (verdict === 'gone') return [];
+      return [{ ...video, embeddable: verdict === 'embeddable' }];
+    });
+
+  return { recent: apply(recent), popular: apply(popular) };
 }

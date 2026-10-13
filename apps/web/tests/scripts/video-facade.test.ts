@@ -8,6 +8,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createDom, type Dom } from '../helpers/dom';
+import { list, pageDom } from '../helpers/video-markup';
 
 const SRC = 'https://www.youtube-nocookie.com/embed/abc123?autoplay=1&rel=0&modestbranding=1';
 
@@ -312,6 +313,28 @@ describe('when the player reports it cannot play', () => {
     expect(dom.document.querySelector('[data-video-tile] a')?.getAttribute('aria-label')).toBe(
       'Ver "" en YouTube',
     );
+  });
+
+  it('carries the date and view count over to the link tile', async () => {
+    // The template renders the details line empty. Read off the old tile and
+    // refilled for its list, a degraded tile says what it said a second ago.
+    const published = new Date(Date.now() - 2 * 3_600_000).toISOString();
+    const dom = await load(
+      pageDom([
+        list('popular', [{ id: 'abc123', title: 'Marimba', views: 92, published }], {
+          meta: 'views date',
+        }),
+      ]),
+    );
+    const iframe = play(dom);
+
+    post(dom, iframe, { event: 'onError', info: 150 });
+
+    const degraded = dom.document.querySelector('[data-video-tile]')!;
+    expect(degraded.querySelector('[data-video-facade]')).toBeNull();
+    expect(degraded.getAttribute('data-views')).toBe('92');
+    expect(degraded.querySelector('[data-video-views-count]')?.textContent).toBe('92');
+    expect(degraded.querySelector('[data-video-date]')?.textContent).toBe('hace 2 horas');
   });
 
   it('moves focus to the link that replaced the button', async () => {

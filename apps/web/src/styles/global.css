@@ -35,6 +35,7 @@
   --color-accent: var(--qa-accent);
   --color-accent-fg: var(--qa-accent-fg);
   --color-focus: var(--qa-focus);
+  --color-live: var(--qa-live);
 
   --font-sans: var(--qa-font-sans);
   --font-display: var(--qa-font-display);
@@ -513,6 +514,153 @@
   [data-reveal][data-revealed] {
     opacity: 1;
     transform: none;
+  }
+
+  /**
+   * The video grid: whatever does not fill a row goes on TOP.
+   *
+   * One column on a phone, two on a tablet, three on a desktop. A count that
+   * does not divide by the columns would otherwise leave one or two tiles
+   * stranded on the last row, so the remainder is promoted instead:
+   *
+   *   remainder 1   the first tile spans the full width
+   *   remainder 2   the first two share the top row (desktop only)
+   *   remainder 0   a plain grid
+   *
+   * The newest — or most viewed — video is therefore the one that gets the
+   * room, which is what its position already says about it.
+   *
+   * The count is of tiles SHOWN, and it changes: "ver más" reveals more, the
+   * refresh adds or drops one. CSS cannot count visible siblings, so the
+   * remainders arrive as attributes — `data-rem-2` and `data-rem-3`, written by
+   * `VideoList.astro` for the HTML (every tile shown) and by
+   * `scripts/video-list.ts` from then on.
+   *
+   * Six tracks rather than two or three, so a half-width tile is a whole
+   * number of tracks at every size: 3 of 6 on a tablet, 2 of 6 per tile and
+   * 3 of 6 for a pair on a desktop.
+   *
+   * `li:first-of-type`, never `:first-child`: Astro emits a component's
+   * <script> where it is first rendered, which can be inside this list, and a
+   * `:first-child` rule then lands on the script — that is how one list once
+   * featured its first tile and the other did not.
+   */
+  .qa-video-grid {
+    display: grid;
+    gap: 3rem 1.5rem;
+  }
+
+  @media (min-width: 640px) {
+    .qa-video-grid {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+
+    .qa-video-grid > li {
+      grid-column: span 3;
+    }
+
+    .qa-video-grid[data-rem-2='1'] > li:first-of-type {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .qa-video-grid {
+      column-gap: 2rem;
+    }
+
+    .qa-video-grid > li,
+    .qa-video-grid[data-rem-2='1'] > li:first-of-type {
+      grid-column: span 2;
+    }
+
+    .qa-video-grid[data-rem-3='1'] > li:first-of-type {
+      grid-column: 1 / -1;
+    }
+
+    .qa-video-grid[data-rem-3='2'] > li:nth-of-type(-n + 2) {
+      grid-column: span 3;
+    }
+
+    /*
+     * A full-width tile on a desktop would be a 16:9 image over 1,100px wide
+     * and 600px tall — a second hero. So it becomes a feature instead: the
+     * image across two thirds, the title beside it in the display face.
+     */
+    .qa-video-grid[data-rem-3='1'] > li:first-of-type [data-video-tile] {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+      column-gap: 2.5rem;
+      align-items: end;
+    }
+
+    .qa-video-grid[data-rem-3='1'] > li:first-of-type figcaption {
+      margin-top: 0;
+      padding-bottom: 0.25rem;
+    }
+
+    .qa-video-grid[data-rem-3='1'] > li:first-of-type [data-video-heading] {
+      font-size: 1.75rem;
+      line-height: 1.2;
+    }
+
+    .qa-video-grid[data-rem-3='1'] > li:first-of-type [data-video-title] {
+      font-family: var(--qa-font-display);
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+  }
+
+  /* A promoted tile on a tablet, or a pair on a desktop, gets a larger title
+     to match the larger image. */
+  @media (min-width: 640px) and (max-width: 1023.98px) {
+    .qa-video-grid[data-rem-2='1'] > li:first-of-type [data-video-heading] {
+      font-size: 1.125rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .qa-video-grid[data-rem-3='2'] > li:nth-of-type(-n + 2) [data-video-heading] {
+      font-size: 1.125rem;
+    }
+  }
+
+  /**
+   * When "ver más" changes the size of tiles already on screen — the count
+   * moving from one remainder to another — the change is a View Transition:
+   * each of those tiles morphs from its old box to its new one instead of
+   * snapping. Same curve and duration as the rest of the site's motion.
+   * Browsers without the API, and reduced motion, get the change instantly.
+   */
+  ::view-transition-group(*.qa-tile) {
+    animation-duration: var(--qa-dur-slow);
+    animation-timing-function: var(--qa-ease);
+  }
+
+  /*
+   * One image per tile, not two. The default cross-fades the old snapshot
+   * into the new while both are stretched to the moving box, which for a tile
+   * changing width shows its title twice, at two sizes, for half a second. The
+   * new snapshot alone, scaled from the old box to the new, reads as the tile
+   * itself growing.
+   */
+  ::view-transition-old(*.qa-tile) {
+    display: none;
+  }
+
+  ::view-transition-new(*.qa-tile) {
+    animation: none;
+  }
+
+  /*
+   * And nothing but those tiles. Without this the whole page is captured too
+   * and cross-faded, so the departing "ver más" row ghosts over the new tiles,
+   * and the new tiles' own entrance plays under a frozen picture of the page.
+   * With the root uncaptured, everything that is not morphing stays live.
+   * Scoped to the duration of the morph by `scripts/video-list.ts`.
+   */
+  :root[data-video-morph] {
+    view-transition-name: none;
   }
 
   /* Underline that draws in on hover, instead of appearing all at once. */

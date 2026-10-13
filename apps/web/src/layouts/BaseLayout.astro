@@ -23,9 +23,11 @@ interface Props {
    * header. Everything else needs top padding so content is not covered.
    */
   fullBleed?: boolean;
+  /** Whether the page has a "lo más visto" section for the menu to link to. */
+  popular?: boolean;
 }
 
-const { title, description, image, noindex, fullBleed = false } = Astro.props;
+const { title, description, image, noindex, fullBleed = false, popular = true } = Astro.props;
 
 const locale: Locale = isLocale(Astro.currentLocale) ? Astro.currentLocale : DEFAULT_LOCALE;
 const meta = LOCALE_META[locale];
@@ -80,7 +82,7 @@ const t = useTranslations(locale);
     <a href="#main" class="qa-sr-only">{t('nav.skipToContent')}</a>
 
     {/* A full-bleed page opens with the dark hero, which the header overlays. */}
-    <Header overlay={fullBleed} />
+    <Header overlay={fullBleed} popular={popular} />
 
     {
       /*

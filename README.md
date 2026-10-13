@@ -147,7 +147,7 @@ troubleshooting table — is in [docs/deployment.md](docs/deployment.md).
 - Inert ad slots with placement decided and layout space reserved
 - SEO: canonical URLs, Open Graph, Twitter cards, sitemap, `robots.txt`, and
   automatic `noindex` on preview deploys
-- **362 tests at 100% coverage** of every line of TypeScript the site ships,
+- **530 tests at 100% coverage** of every line of TypeScript the site ships,
   enforced by `pnpm verify` — plus ESLint with a static accessibility gate. See
   [docs/testing.md](docs/testing.md)
 - Accessibility: **WCAG 2.2 AA**, verified — named landmarks, a described hero

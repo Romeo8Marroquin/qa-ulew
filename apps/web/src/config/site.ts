@@ -22,6 +22,12 @@ export const SITE = {
   url: 'https://qa-ulew.tv',
   /** Used for og:locale and the `lang` attribute of the default locale. */
   defaultRegion: 'GT',
+  /**
+   * The channel's clock. A date baked into the page at build time is printed in
+   * this zone, not the build server's — a stream at 8 p.m. in Sololá is 2 a.m.
+   * UTC the next day, and would otherwise be dated wrong.
+   */
+  timeZone: 'America/Guatemala',
   /** Fallback social-share image, relative to `public/`. */
   ogImage: '/og-default.png',
   /** TODO: fill in if an X/Twitter account is ever created (e.g. '@qaulew'). */
@@ -146,6 +152,12 @@ export interface FeaturedVideo {
    * visitor hits it.
    */
   embeddable?: boolean;
+  /** ISO date. Feed videos carry it; a pinned entry without one shows no date. */
+  published?: string;
+  /** View count from the feed, or `null`/absent when unknown. */
+  views?: number | null;
+  /** On air right now. Only the Pages Function sets this — see lib/youtube.ts. */
+  live?: boolean;
 }
 
 /**
@@ -171,19 +183,45 @@ export const FEATURED_VIDEOS: FeaturedVideo[] = [];
  * The channel ID is NOT a secret — it is visible in that public URL — so it
  * belongs here rather than in an environment variable.
  *
- * The feed returns the 15 most recent uploads. Because the site is static, it
- * refreshes when the site rebuilds; see docs/content.md for the scheduled
- * rebuild that keeps it current.
+ * Every feed returns at most 15 entries — the uploads feed for "lo más
+ * reciente", and the channel's auto-generated popular playlists for "lo más
+ * visto" (see `popularPlaylists` in lib/youtube-feed.ts). The page bakes them
+ * at build time and `functions/api/videos.ts` brings them up to date on load;
+ * see docs/content.md.
  */
-export const YOUTUBE: { channelId: string; handle: string; limit: number } = {
+export const YOUTUBE: {
+  channelId: string;
+  handle: string;
+  limit: number;
+  initial: number;
+  step: number;
+} = {
   /** Resolved from the `externalId` field on youtube.com/@QaUlew. */
   channelId: 'UCDM5XlH9kA65lLmjrHyspfw',
   handle: '@QaUlew',
-  /** How many feed videos to show, after the pinned ones. */
-  limit: 6,
+  /**
+   * The longest either list may be. 15 is the feed's own ceiling, so this is
+   * "everything YouTube will tell us without an API key", not a design choice.
+   */
+  limit: 15,
+  /**
+   * Tiles shown before "ver más". Three is one row on desktop, and on a tablet
+   * the first tile spans both columns so three is still a complete shape.
+   */
+  initial: 3,
+  /**
+   * Tiles each "ver más" adds. 12 divides into both the two- and three-column
+   * grids, so a revealed batch never ends on a half row — and with `initial`
+   * it reaches the 15-video ceiling in one press rather than five.
+   */
+  step: 12,
 };
 
 export const youtubeFeedEnabled = (): boolean => YOUTUBE.channelId !== '';
+
+/** The channel's own page, for "ver todo". Empty when no handle is configured. */
+export const youtubeChannelUrl = (): string =>
+  YOUTUBE.handle ? `https://www.youtube.com/${YOUTUBE.handle}` : '';
 
 /**
  * Cloudflare Stream — not enabled yet.

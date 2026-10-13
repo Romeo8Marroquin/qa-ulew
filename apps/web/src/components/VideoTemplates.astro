@@ -1,0 +1,35 @@
+---
+/**
+ * Prototypes for the two tile shapes, rendered by the same component the real
+ * tiles use so they cannot drift from it. `__ID__` and `__TITLE__` are stamped
+ * out per video in `scripts/video-tile.ts`, and the line under the title is
+ * filled there too — these render it empty and hidden.
+ *
+ * Once per page, not per list: both lists clone from the same pair, and
+ * `cloneTile` looks them up by attribute.
+ *
+ * Inert until cloned: a browser neither loads the poster nor runs anything
+ * inside a <template>, and `document.querySelectorAll` does not reach into
+ * one, so the reveal and facade scripts skip these.
+ */
+import Reveal from '~/components/Reveal.astro';
+import VideoEmbed from '~/components/VideoEmbed.astro';
+import { youtubeFeedEnabled } from '~/config/site';
+---
+
+{
+  youtubeFeedEnabled() && (
+    <>
+      <template data-video-template="embeddable">
+        <Reveal as="li">
+          <VideoEmbed provider="youtube" id="__ID__" title="__TITLE__" />
+        </Reveal>
+      </template>
+      <template data-video-template="link">
+        <Reveal as="li">
+          <VideoEmbed provider="youtube" id="__ID__" title="__TITLE__" embeddable={false} />
+        </Reveal>
+      </template>
+    </>
+  )
+}

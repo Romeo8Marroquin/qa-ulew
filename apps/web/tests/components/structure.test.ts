@@ -114,7 +114,25 @@ describe('Header', () => {
     const { queryAll } = await render(Header);
     const navLinks = queryAll('nav a').map((link) => link.getAttribute('href'));
 
-    expect(new Set(navLinks)).toEqual(new Set(['#videos', '#about', '#contact']));
+    expect(new Set(navLinks)).toEqual(new Set(['#videos', '#popular', '#about', '#contact']));
+  });
+
+  it('names each video list on its own, not "Videos" for both', async () => {
+    const { queryAll } = await render(Header);
+    const labels = queryAll('nav[aria-label="Navegación principal"] a').map((link) =>
+      link.textContent?.trim(),
+    );
+
+    expect(labels.slice(0, 2)).toEqual(['Recientes', 'Más vistos']);
+  });
+
+  it('leaves out the most-viewed link when the page has no such section', async () => {
+    // It is rendered only when there is something in it. A menu entry that
+    // scrolls nowhere is a dead link.
+    const { queryAll } = await render(Header, { props: { popular: false } });
+
+    expect(queryAll('a[href="#popular"]')).toHaveLength(0);
+    expect(queryAll('a[href="#videos"]').length).toBeGreaterThan(0);
   });
 
   it('repeats the same items in the mobile panel', async () => {

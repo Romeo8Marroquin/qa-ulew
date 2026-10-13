@@ -1,0 +1,167 @@
+---
+/**
+ * One list of videos: a grid, a "ver más" button, and a way out to YouTube.
+ *
+ * Used twice on the home page — the newest uploads and the most viewed — and
+ * named by `name`, which is also the key `/api/videos` answers under, so
+ * `scripts/video-feed.ts` knows which list to bring up to date.
+ *
+ * EVERY TILE SHIPS VISIBLE
+ *
+ * The HTML carries the whole list. `scripts/video-list.ts` hides all but the
+ * first few on load and reveals more on demand, and the button is `hidden`
+ * until that script runs. So a visitor without JavaScript gets every video and
+ * no button that does nothing — the same rule `Reveal` follows: never hide
+ * content behind a script that might not run. The section sits below the
+ * full-height hero, so collapsing it moves nothing a visitor is looking at.
+ *
+ * Hidden tiles cost nothing: a `display: none` image with `loading="lazy"` is
+ * never requested, so the posters of the twelve tiles behind "ver más" are not
+ * downloaded unless someone asks to see them.
+ */
+import { Icon } from 'astro-icon/components';
+
+import Reveal from '~/components/Reveal.astro';
+import VideoEmbed from '~/components/VideoEmbed.astro';
+import { type FeaturedVideo, YOUTUBE, youtubeChannelUrl } from '~/config/site';
+import { DEFAULT_LOCALE, isLocale } from '~/i18n/config';
+import { useTranslations } from '~/i18n/utils';
+import type { MetaField } from '~/lib/video-meta';
+
+interface Props {
+  name: 'recent' | 'popular';
+  videos: FeaturedVideo[];
+  /** What the line under each title shows; see `lib/video-meta.ts`. */
+  meta: MetaField[];
+  /** Load the first poster eagerly. Only for the first list on the page. */
+  eager?: boolean;
+}
+
+const { name, videos, meta, eager = false } = Astro.props;
+
+const t = useTranslations(isLocale(Astro.currentLocale) ? Astro.currentLocale : DEFAULT_LOCALE);
+
+const gridId = `${name}-videos`;
+const channelUrl = youtubeChannelUrl();
+const remaining = Math.max(0, videos.length - YOUTUBE.initial);
+---
+
+<div
+  data-video-list={name}
+  data-video-meta={meta.join(' ')}
+  data-initial={YOUTUBE.initial}
+  data-step={YOUTUBE.step}
+>
+  {
+    /*
+      A real list: a screen reader announces "lista, 15 elementos", which is
+      how a visitor learns how much is here before deciding to go through it.
+      `role="list"` is not redundant — see docs/accessibility.md.
+
+      Three columns on desktop, two on a tablet, one on a phone, with any
+      tiles that would be left over on the last row promoted to the top
+      instead — see `.qa-video-grid` in global.css. The remainders written
+      here are for this HTML, where every tile is shown; the script rewrites
+      them as soon as it collapses the list.
+    */
+  }
+  <ul
+    role="list"
+    id={gridId}
+    data-video-grid
+    data-rem-2={videos.length % 2}
+    data-rem-3={videos.length % 3}
+    class="qa-video-grid"
+  >
+    {
+      videos.map((video, index) => (
+        <Reveal as="li" delay={(index % 3) * 70}>
+          <VideoEmbed
+            provider={video.provider}
+            id={video.id}
+            title={video.title}
+            poster={video.poster}
+            eager={eager && index === 0}
+            embeddable={video.embeddable}
+            published={video.published}
+            views={video.views}
+            live={video.live}
+            meta={meta}
+          />
+        </Reveal>
+      ))
+    }
+  </ul>
+
+  {
+    /*
+      Always present, rather than instead of the grid. `scripts/video-feed.ts`
+      refills the grid after load, and the case it most needs to handle is a
+      build that shipped no videos at all because YouTube was throttling the
+      deploy — which is precisely when rendering the message *instead of* a
+      grid left the script nothing to fill.
+    */
+  }
+  <div data-video-empty hidden={videos.length > 0}>
+    <p class="rounded-lg border border-dashed border-border px-6 py-20 text-center text-fg-subtle">
+      {t('videos.empty')}
+    </p>
+  </div>
+
+  <div class="mt-14 flex flex-col items-center gap-x-8 gap-y-5 sm:flex-row sm:justify-center">
+    {
+      /*
+        The count in the label changes as tiles are revealed, so the browser
+        writes it from these two forms (`Intl.PluralRules` picks one). They are
+        the raw strings with `{count}` still in them.
+      */
+    }
+    <button
+      type="button"
+      class="qa-btn qa-btn-outline group/more"
+      data-video-more
+      aria-controls={gridId}
+      data-label-one={t('videos.more.one')}
+      data-label-other={t('videos.more.other')}
+      hidden
+    >
+      <span data-video-more-label>
+        {t('videos.more.other', { count: Math.min(YOUTUBE.step, remaining) })}
+      </span>
+      <Icon
+        name="lucide:chevron-down"
+        class="h-4 w-4 transition-transform duration-300 ease-[var(--ease-brand)] group-hover/more:translate-y-0.5"
+        aria-hidden="true"
+        is:inline
+      />
+    </button>
+
+    {
+      channelUrl && videos.length > 0 && (
+        <a
+          href={channelUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="qa-link inline-flex items-center gap-1.5 text-sm font-medium text-fg-muted transition-colors hover:text-fg"
+        >
+          {t('videos.all', { provider: 'YouTube' })}
+          <Icon name="lucide:external-link" class="h-3.5 w-3.5" aria-hidden="true" is:inline />
+          <span class="qa-sr-only">{t('a11y.newWindow')}</span>
+        </a>
+      )
+    }
+  </div>
+
+  {
+    /*
+      Spoken after "ver más", alongside focus moving to the first new tile.
+      Empty until then, so nothing is announced on load.
+    */
+  }
+  <p class="qa-sr-only" role="status" data-video-status data-template={t('a11y.videos.showing')}>
+  </p>
+</div>
+
+<script>
+  import '~/scripts/video-list';
+</script>

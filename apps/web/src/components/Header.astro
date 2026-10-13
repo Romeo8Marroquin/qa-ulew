@@ -12,9 +12,15 @@ interface Props {
    * and switches to the normal theme once scrolled past it.
    */
   overlay?: boolean;
+  /**
+   * False when the page has no "lo más visto" section — it is rendered only
+   * when there is something in it — so the menu never links to an anchor
+   * that is not there.
+   */
+  popular?: boolean;
 }
 
-const { overlay = false } = Astro.props;
+const { overlay = false, popular = true } = Astro.props;
 
 const locale = isLocale(Astro.currentLocale) ? Astro.currentLocale : DEFAULT_LOCALE;
 const t = useTranslations(locale);
@@ -22,7 +28,8 @@ const t = useTranslations(locale);
 // The landing is a single page today, so these are in-page anchors. When real
 // routes exist, swap the `href` for `localePath('/videos', locale)` etc.
 const navItems = [
-  { href: '#videos', label: t('nav.videos') },
+  { href: '#videos', label: t('nav.recent') },
+  ...(popular ? [{ href: '#popular', label: t('nav.popular') }] : []),
   { href: '#about', label: t('nav.about') },
   { href: '#contact', label: t('nav.contact') },
 ];

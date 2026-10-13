@@ -61,6 +61,8 @@ export default defineConfig({
           'map-pin',
           'languages',
           'external-link',
+          'eye',
+          'chevron-down',
         ],
       },
     }),

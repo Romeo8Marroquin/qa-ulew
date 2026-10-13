@@ -1,6 +1,6 @@
 # Testing
 
-**362 tests. 100% coverage of every line of TypeScript the site ships**, with
+**530 tests. 100% coverage of every line of TypeScript the site ships**, with
 the threshold enforced so it cannot quietly slip.
 
 ```bash
@@ -40,11 +40,12 @@ apps/web/
     ├── setup.ts            disables the network
     ├── helpers/
     │   ├── dom.ts          a fresh browser per test
-    │   └── render.ts       Container API → queryable document
+    │   ├── render.ts       Container API → queryable document
+    │   └── video-markup.ts tiles and lists, for the browser-script tests
     ├── i18n/               translation, locale resolution, hreflang
     ├── config/             feature flags, placeholders, contact details
     ├── lib/                the YouTube feed and every way it can fail
-    ├── scripts/            the five browser modules
+    ├── scripts/            the browser modules
     └── components/         rendered markup, contracts, metadata
 ```
 
@@ -182,10 +183,10 @@ number.
 ## Coverage is 100%, and enforced
 
 ```
-Statements   100% (369/369)
-Branches     100% (181/181)
-Functions    100% ( 77/77 )
-Lines        100% (315/315)
+Statements   100% (744/744)
+Branches     100% (440/440)
+Functions    100% (142/142)
+Lines        100% (624/624)
 ```
 
 A threshold below 100 on a codebase this size is a budget for untested code, and

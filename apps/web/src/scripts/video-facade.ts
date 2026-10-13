@@ -17,7 +17,7 @@
  * `init()` for them to call — which would have made this a rewrite rather
  * than a move, and left the tests exercising a shape the site does not ship.
  */
-import { cloneTile } from '~/scripts/video-tile';
+import { cloneTile, readFields, readTile } from '~/scripts/video-tile';
 
 /** The embed host. Messages from anywhere else are not from our player. */
 const PLAYER_ORIGIN = 'https://www.youtube-nocookie.com';
@@ -70,17 +70,14 @@ function withPlayerApi(src: string): string {
  * is indistinguishable from one that rendered as a link at build time —
  * external-link badge, the "solo se puede ver en YouTube" line, and a link
  * whose accessible name says where it goes and that it opens a new window.
+ * Its date, views and live state are read off the old tile and carried over.
  */
 function degradeToLink(facade: HTMLElement): void {
   const tile = facade.closest<HTMLElement>('[data-video-tile]');
   const id = tile?.dataset.videoId;
   if (!tile || !id) return;
 
-  const replacement = cloneTile({
-    id,
-    title: tile.querySelector('[data-video-title]')?.textContent ?? '',
-    embeddable: false,
-  });
+  const replacement = cloneTile({ ...readTile(tile), embeddable: false }, readFields(tile));
   if (!replacement) return;
 
   // Read out of the fragment before it is inserted — appending a

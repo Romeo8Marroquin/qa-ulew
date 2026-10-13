@@ -614,7 +614,7 @@ site still deploying perfectly, which is the worst kind of failure to diagnose.
 
 ```ts
 import { YOUTUBE } from "../../apps/web/src/config/site";
-import { applyVerdicts, parseFeed } from "../../apps/web/src/lib/youtube-feed";
+import { buildCatalog, fetchLive, parseFeed } from "../../apps/web/src/lib/youtube-feed";
 ```
 
 Relative, not `~/` — the Functions bundler is esbuild running at the repository
@@ -632,6 +632,13 @@ pnpm build
 pnpm --filter @qa-ulew/web cf:preview
 curl http://127.0.0.1:8788/api/videos
 ```
+
+If wrangler refuses to start with _"This Worker requires compatibility date …
+but the newest date supported by this server binary is …"_, its bundled
+runtime is older than today's date, which is what it defaults to. Pass one
+explicitly — `wrangler pages dev apps/web/dist --compatibility-date=2026-08-01`
+from the repository root — or update wrangler. Nothing in the repository is
+wrong when this happens.
 
 That script carries `--cwd ../..` for a reason worth not undoing: wrangler
 resolves `functions/` against its working directory, and pnpm runs the script
@@ -651,9 +658,20 @@ type-checks the Function even though it lives outside the app.
 ### What it costs
 
 Pages Functions bill as Workers requests: 100,000 per day on the free plan. The
-response is cached at the edge for five minutes and the cache is keyed on a
-fixed URL, so a burst of traffic collapses to roughly 288 invocations a day
-regardless of visitor count. Nothing here approaches the free tier.
+response is cached at the edge for three minutes and the cache is keyed on a
+fixed URL, so a burst of traffic collapses to roughly 480 upstream refreshes a
+day per edge location regardless of visitor count. Nothing here approaches the
+free tier.
+
+Each refresh makes at most 44 subrequests against the free plan's 50: the
+uploads feed, two popular playlists, the channel's `/live` page, and up to 20
+embed probes that may each be re-checked once (`PROBE_BUDGET`). The `/live` page
+is ~1.3 MB, so it is streamed and abandoned as soon as it has answered — on a
+channel that is not on air, after the first few kilobytes.
+
+A successful answer is also kept for a day under a second key. When YouTube
+throttles a refresh, that copy is served instead of a 503, so the page falls
+back minutes, not days — the build-time HTML can be as old as the last deploy.
 
 ### If it ever needs to be turned off
 

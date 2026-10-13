@@ -265,6 +265,7 @@ component reads as noise.
 | Header background | `Header.astro`     | Observer on a sentinel, not a scroll listener                            |
 | Mobile menu       | `Header.astro`     | `grid-template-rows` 0fr → 1fr (`height: auto` cannot animate)           |
 | Thumbnail hover   | `VideoEmbed.astro` | Grayscale → colour, slight scale                                         |
+| "Ver más"         | `video-list.ts`    | New tiles fade up as they enter view, 70ms apart; one smooth scroll      |
 
 Three rules that matter more than the animations themselves:
 
@@ -275,6 +276,15 @@ Three rules that matter more than the animations themselves:
 2. **Keep travel small.** Reveals move 14px. Large entrance movement impresses
    once and feels sluggish every time after.
 3. **Reveal once.** Re-animating on scroll-up is distracting.
+4. **A resize is not a scroll.** Dragging a window wider reflows content into
+   the bottom 12% band the observer waits on, where it used to sit blank until
+   the visitor scrolled — measured, two thirds of a drag across the about
+   section showed empty blocks. After a resize, anything hidden but on screen is
+   shown at once, without the entrance. Rotating a phone is the same case.
+5. **Name what animates.** `transition`, never `transition-all`: "all" also
+   animates whatever layout property happens to change one day. Tailwind v4's
+   `transition` already covers colour, opacity, shadow, filter, transform,
+   translate and scale.
 
 `prefers-reduced-motion: reduce` disables all of it — `global.css` neutralises
 transitions and animations globally, and `Reveal` skips the observer entirely
@@ -298,6 +308,83 @@ These are the only conditions under which the design is allowed to differ from
 what is in this document, and none of them are exposed as site controls — an OS
 setting is the one the visitor actually configured. Details and exact values in
 [accessibility.md](accessibility.md).
+
+## Video lists
+
+Two lists on the home page, _Lo más reciente_ and _Lo más visto_, each its own
+section. They continue one muted band, divided by the single hairline the first
+section already draws — two muted sections would stack two hairlines into one
+heavy rule.
+
+One column on a phone, two on a tablet, three on a desktop — and **whatever
+would be left over on the last row goes on top instead**:
+
+| Left over | Tablet (2 columns)     | Desktop (3 columns)                  |
+| --------- | ---------------------- | ------------------------------------ |
+| 0         | plain grid             | plain grid                           |
+| 1         | first tile, full width | first tile, full width, as a feature |
+| 2         | —                      | first two, half width each           |
+
+So the newest — or most viewed — video gets the room, which is what its position
+already says about it, and no row ever ends with a tile stranded on its own.
+With three shown that is one big tile and a pair on a tablet, and a row of three
+on a desktop.
+
+A full-width tile on a desktop would be a second hero — a 16:9 image over
+1,100px wide — so it becomes a **feature**: the image across two thirds, the
+title beside it in Fraunces at 1.75rem. A promoted tile anywhere else gets a
+slightly larger title to match its image.
+
+It is all `.qa-video-grid` in `global.css`: six tracks, so a half-width tile is
+a whole number of them at every size, and two attributes, `data-rem-2` and
+`data-rem-3`, written by `VideoList.astro` for the HTML and by
+`scripts/video-list.ts` whenever the number shown changes. The selectors use
+`li:first-of-type`, never `:first-child` — Astro can emit a component's
+`<script>` inside the list, and a `:first-child` rule then lands on the script.
+That is how one list once featured its first tile and the other did not.
+
+Three tiles show, then "Ver 12 videos más" (`.qa-btn-outline`, with a chevron
+that dips on hover) and "Ver todo en YouTube" beside it.
+
+Under each title, one quiet line in `--qa-fg-subtle`: when, for the recent list;
+an eye icon, the count and when, for the most viewed. A stream on air says only
+"Transmitiendo ahora".
+
+### "Ver más" in motion
+
+A press reveals the next batch with the same fade-and-rise as every `Reveal`,
+staggered 70ms per tile in the order they **arrive in view** rather than by
+their index — so a row cascades correctly in one, two or three columns, and
+tiles further down wait and settle in as the visitor scrolls to them. The
+cascade is capped at five steps so the last of a tall screen does not lag.
+
+Focus moves to the first new tile without scrolling, and the page then glides
+**once**, only downward, only far enough to show that tile whole — never
+pushing its top under the fixed header. Letting `focus()` scroll instead
+jumped the page in a single frame and stopped with the tile cut off at the
+bottom edge; measured, then fixed. If the tile is already in view, nothing
+moves.
+
+When a press changes the leftover count — three shown leave none over, fourteen
+leave two — the tiles already on screen change size. That runs as a **View
+Transition**: each of them glides from its old box to its new one as a single
+image. Not the default cross-fade, which showed every title twice mid-morph; and
+the page root is left uncaptured meanwhile, so everything that is not morphing
+stays live and the new tiles cascade in as usual. Only the column count on
+screen now is considered, so a press that changes nothing visible animates
+nothing. Browsers without View Transitions get the new layout at once.
+
+Under `prefers-reduced-motion` nothing fades, nothing morphs, and the scroll is
+instant.
+
+### The one colour: live
+
+`--qa-live` is a red, and the single exception to the monochrome rule. A red dot
+is the broadcast convention for "on air", read without a word by every visitor,
+and nothing else on the site is red, so it cannot be mistaken for decoration.
+It is only ever a small dot beside the words "En vivo" — never text, never a
+surface — and it pulses (stilled by `prefers-reduced-motion`). On the thumbnail
+it sits in a solid white pill, the same material as the play button.
 
 ## Video thumbnails
 

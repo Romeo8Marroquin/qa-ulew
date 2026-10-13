@@ -31,9 +31,16 @@
  */
 import { Icon } from 'astro-icon/components';
 
-import { STREAM, type VideoProvider } from '~/config/site';
-import { DEFAULT_LOCALE, isLocale } from '~/i18n/config';
+import { SITE, STREAM, type VideoProvider } from '~/config/site';
+import { DEFAULT_LOCALE, LOCALE_META, isLocale } from '~/i18n/config';
 import { useTranslations } from '~/i18n/utils';
+import {
+  formatDate,
+  formatDateTime,
+  formatViews,
+  type MetaField,
+  metaState,
+} from '~/lib/video-meta';
 
 interface Props {
   provider: VideoProvider;
@@ -48,11 +55,36 @@ interface Props {
    * platform's own error panel inside our layout.
    */
   embeddable?: boolean;
+  published?: string;
+  views?: number | null;
+  live?: boolean;
+  /**
+   * Which details the line under the title may show. Its list decides: the
+   * recent list shows when, the most-viewed list shows how many and when.
+   * Empty shows nothing, which is what the <template> prototypes use — the
+   * browser fills them per video.
+   */
+  meta?: MetaField[];
 }
 
-const { provider, id, title, poster, eager = false, embeddable = true } = Astro.props;
+const {
+  provider,
+  id,
+  title,
+  poster,
+  eager = false,
+  embeddable = true,
+  published = '',
+  views = null,
+  live = false,
+  meta = [],
+} = Astro.props;
 
-const t = useTranslations(isLocale(Astro.currentLocale) ? Astro.currentLocale : DEFAULT_LOCALE);
+const locale = isLocale(Astro.currentLocale) ? Astro.currentLocale : DEFAULT_LOCALE;
+const t = useTranslations(locale);
+const lang = LOCALE_META[locale].htmlLang;
+
+const shown = metaState({ published, views, live }, meta);
 
 const PROVIDER_LABEL: Record<VideoProvider, string> = {
   youtube: 'YouTube',
@@ -112,7 +144,7 @@ const providerLabel = PROVIDER_LABEL[provider];
  * interactive.
  */
 const posterClass =
-  'h-full w-full object-cover grayscale transition-all duration-500 ease-[var(--ease-brand)] group-hover:scale-[1.03] group-hover:grayscale-0';
+  'h-full w-full object-cover grayscale transition duration-500 ease-[var(--ease-brand)] group-hover:scale-[1.03] group-hover:grayscale-0';
 
 /*
  * `qa-focus-inset` draws the focus ring inward. The default ring is offset 3px
@@ -126,17 +158,53 @@ const overlayClass =
 
 const badgeClass =
   'flex h-16 w-16 items-center justify-center rounded-full bg-white/95 text-black shadow-lg transition-transform duration-300 ease-[var(--ease-brand)] group-hover:scale-110';
+
+/*
+ * The pulsing dot, used on the thumbnail badge and in the caption line. The
+ * ping is a CSS animation, so `prefers-reduced-motion` stills it through the
+ * global rule in global.css and the dot simply sits there, which still reads.
+ */
+const liveDotClass = 'relative inline-flex h-2 w-2 shrink-0';
+const livePingClass = 'absolute inset-0 animate-ping rounded-full bg-live opacity-70';
+const liveCoreClass = 'relative inline-flex h-2 w-2 rounded-full bg-live';
 ---
 
 {
   render && (
-    <figure class="group m-0" data-video-tile data-video-id={id}>
+    <figure
+      class="group m-0"
+      data-video-tile
+      data-video-id={id}
+      data-published={published || undefined}
+      data-views={views ?? undefined}
+      data-live={live ? '' : undefined}
+    >
       <div
         class="relative aspect-video w-full overflow-hidden rounded-lg border border-border bg-bg-subtle transition-shadow duration-300 ease-[var(--ease-brand)] group-hover:shadow-lg"
         data-video-facade={embeddable ? '' : undefined}
         data-src={embeddable ? src : undefined}
         data-title={embeddable ? title : undefined}
       >
+        {/*
+          Above the overlay, but `pointer-events-none` so a click on it still
+          reaches the play button underneath. `aria-hidden` because the caption
+          says the same thing as text, which is where a screen reader meets it.
+          Solid white on any thumbnail, in either theme — no translucency, so
+          nothing for Reduce Transparency to fix.
+        */}
+        <span
+          data-video-live-badge
+          hidden={!live}
+          aria-hidden="true"
+          class="pointer-events-none absolute top-3 left-3 z-10 inline-flex items-center gap-2 rounded-full bg-white px-2.5 py-1 text-[0.68rem] font-semibold tracking-[0.14em] text-black uppercase shadow-md"
+        >
+          <span class={liveDotClass}>
+            <span class={livePingClass} />
+            <span class={liveCoreClass} />
+          </span>
+          {t('videos.live')}
+        </span>
+
         {posterSrc ? (
           <img
             src={posterSrc}
@@ -173,8 +241,8 @@ const badgeClass =
         )}
       </div>
 
-      <figcaption class="mt-4 flex items-start justify-between gap-4">
-        <span class="font-medium text-balance text-fg">
+      <figcaption class="mt-4">
+        <span data-video-heading class="block font-medium text-balance text-fg">
           <span data-video-title>{title}</span>
           {/*
             Sighted visitors get the reason the tile behaves differently. The
@@ -187,23 +255,67 @@ const badgeClass =
             </span>
           )}
         </span>
-        {watchUrl && (
-          <a
-            href={watchUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="qa-link inline-flex shrink-0 items-center gap-1 text-sm whitespace-nowrap text-fg-subtle transition-colors hover:text-fg"
-          >
-            {t('videos.watchOn', { provider: providerLabel })}
-            <Icon name="lucide:external-link" class="h-3.5 w-3.5" aria-hidden="true" is:inline />
+
+        <span class="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm">
+          {/*
+            Every part is always rendered and toggled with `hidden`, never
+            added or removed. `scripts/video-tile.ts` brings this line up to
+            date after load with the same rules (`lib/video-meta.ts`), and it
+            can only do that to elements that are already there.
+          */}
+          <span data-video-meta class="flex min-w-0 items-center gap-1.5 text-fg-subtle">
+            <span
+              data-video-live
+              hidden={!shown.live}
+              class="inline-flex items-center gap-2 font-medium text-fg"
+            >
+              <span class={liveDotClass} aria-hidden="true">
+                <span class={livePingClass} />
+                <span class={liveCoreClass} />
+              </span>
+              {t('videos.liveNow')}
+            </span>
+            <span data-video-views hidden={!shown.views} class="inline-flex items-center gap-1">
+              <Icon name="lucide:eye" class="h-3.5 w-3.5" aria-hidden="true" is:inline />
+              <span class="qa-sr-only">{t('a11y.videos.views')}</span>
+              <span data-video-views-count>{shown.views ? formatViews(views ?? 0, lang) : ''}</span>
+            </span>
+            <span data-video-separator hidden={!(shown.views && shown.date)} aria-hidden="true">
+              ·
+            </span>
             {/*
-              The arrow glyph is what tells a sighted visitor this leaves the
-              site, and it is `aria-hidden` — so without this the warning
-              exists for exactly the people who can see it coming anyway.
+              The absolute date is what ships; the browser rewrites it as
+              "hace 3 horas" on load. Without JavaScript the date is still
+              right, which a frozen "hace 3 horas" would not be a week later.
             */}
-            <span class="qa-sr-only">{t('a11y.newWindow')}</span>
-          </a>
-        )}
+            <time
+              data-video-date
+              hidden={!shown.date}
+              datetime={shown.date ? published : undefined}
+              title={shown.date ? formatDateTime(published, lang, SITE.timeZone) : undefined}
+            >
+              {shown.date ? formatDate(published, lang, SITE.timeZone) : ''}
+            </time>
+          </span>
+
+          {watchUrl && (
+            <a
+              href={watchUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="qa-link inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-fg-subtle transition-colors hover:text-fg"
+            >
+              {t('videos.watchOn', { provider: providerLabel })}
+              <Icon name="lucide:external-link" class="h-3.5 w-3.5" aria-hidden="true" is:inline />
+              {/*
+                The arrow glyph is what tells a sighted visitor this leaves the
+                site, and it is `aria-hidden` — so without this the warning
+                exists for exactly the people who can see it coming anyway.
+              */}
+              <span class="qa-sr-only">{t('a11y.newWindow')}</span>
+            </a>
+          )}
+        </span>
       </figcaption>
     </figure>
   )

@@ -86,15 +86,103 @@ describe('when the observer will run', () => {
     expect(two.hasAttribute('data-revealed')).toBe(false);
   });
 
-  it('starts revealing slightly before the element reaches the fold', async () => {
-    // The negative bottom margin is what makes an element finish arriving as it
-    // becomes properly visible, rather than starting to move at that point.
+  it('waits until the element is a little way up the screen', async () => {
+    // The negative bottom margin holds the entrance until the element is past
+    // the bottom 12%, so the visitor sees it arrive rather than finding it
+    // already there.
     const dom = await load(createDom(MARKUP));
 
     expect(dom.observers[0]?.options).toEqual({
       rootMargin: '0px 0px -12% 0px',
       threshold: 0.05,
     });
+  });
+});
+
+describe('when the window is resized', () => {
+  /** Frames run when the test says so, the way a browser runs them before paint. */
+  function frames() {
+    const queue: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>
+      queue.push(callback),
+    );
+    return {
+      queue,
+      run: () => queue.splice(0).forEach((callback) => callback(0)),
+    };
+  }
+
+  /** happy-dom does no layout; place an element on (or off) an 800px screen. */
+  const place = (element: Element, top: number, height = 100) => {
+    element.getBoundingClientRect = () => ({ top, bottom: top + height, height }) as DOMRect;
+  };
+
+  const MORE = `${MARKUP}<div data-reveal id="three">Third</div><div data-reveal id="four">Fourth</div>`;
+
+  async function resized(markup = MORE) {
+    const frame = frames();
+    const dom = await load(createDom(markup));
+    Object.defineProperty(dom.window, 'innerHeight', { value: 800, configurable: true });
+    return { dom, frame, el: (id: string) => dom.document.getElementById(id)! };
+  }
+
+  it('shows what a resize left on screen, at once and without the entrance', async () => {
+    // Dragging a window wider reflows content into the bottom band the
+    // observer ignores, where it sat blank until the visitor scrolled.
+    const { dom, frame, el } = await resized();
+    place(el('one'), 700); // in the bottom band
+    place(el('two'), -60); // peeking in at the top
+
+    dom.window.dispatchEvent(new dom.Event('resize'));
+    frame.run();
+
+    for (const id of ['one', 'two']) {
+      expect(el(id).hasAttribute('data-revealed')).toBe(true);
+      expect(el(id).hasAttribute('data-reveal-hidden')).toBe(false);
+      // The override is gone again: later transitions (theme, hover) still run.
+      expect(el(id).style.transition).toBe('');
+    }
+    expect(dom.observers[0]?.unobserved).toEqual([el('one'), el('two')]);
+  });
+
+  it('leaves alone what is off screen, or not displayed at all', async () => {
+    // Those still arrive the normal way, as the visitor scrolls to them.
+    const { dom, frame, el } = await resized();
+    place(el('one'), 900); // below
+    place(el('two'), -300); // above
+    place(el('three'), 100, 0); // display: none — a tile behind "ver más"
+    place(el('four'), 200);
+
+    dom.window.dispatchEvent(new dom.Event('resize'));
+    frame.run();
+
+    for (const id of ['one', 'two', 'three']) {
+      expect(el(id).hasAttribute('data-reveal-hidden'), id).toBe(true);
+    }
+    expect(el('four').hasAttribute('data-revealed')).toBe(true);
+  });
+
+  it('does the work once per frame, however many resize events arrive', async () => {
+    const { dom, frame } = await resized();
+
+    for (let i = 0; i < 5; i += 1) dom.window.dispatchEvent(new dom.Event('resize'));
+    expect(frame.queue).toHaveLength(1);
+
+    frame.run();
+    dom.window.dispatchEvent(new dom.Event('resize'));
+    expect(frame.queue).toHaveLength(1);
+  });
+
+  it('touches nothing that has already been revealed', async () => {
+    const { dom, frame, el } = await resized();
+    dom.observers[0]?.trigger([{ target: el('one'), isIntersecting: true }]);
+    place(el('one'), 100);
+    el('one').style.transitionDelay = '80ms';
+
+    dom.window.dispatchEvent(new dom.Event('resize'));
+    frame.run();
+
+    expect(el('one').style.transitionDelay).toBe('80ms');
   });
 });
 

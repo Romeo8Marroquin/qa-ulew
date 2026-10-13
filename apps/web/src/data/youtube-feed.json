@@ -1,18 +1,218 @@
 {
-  "note": "Committed snapshot of the YouTube feed. Refresh with: pnpm --filter @qa-ulew/web content:youtube",
-  "fetchedAt": "2026-08-06T22:17:06.938Z",
+  "note": "Committed snapshot of the YouTube feeds. Refresh with: pnpm --filter @qa-ulew/web content:youtube",
+  "fetchedAt": "2026-10-12T22:27:33.567Z",
   "videos": [
+    {
+      "id": "xTU35_9fbAI",
+      "title": "🇬🇹🪇 #EnVivo | Baile Regional de la Octava desde Panajachel, Sololá.",
+      "published": "2026-10-12T17:33:19+00:00",
+      "description": "🇬🇹🪇 #EnVivo | Baile Regional de la Octava desde Panajachel, Sololá.\n\n #Panajachel #Solola #Octava #BaileRegional #QaUlew #EnVivoQaUlew #Tradiciones #Guatemala",
+      "views": 1
+    },
+    {
+      "id": "n_rxh9BVge8",
+      "title": "🇬🇹🪇 #EnVivo | Baile Regional de la Octava desde Panajachel, Sololá.",
+      "published": "2026-10-12T16:02:54+00:00",
+      "description": "🇬🇹🪇 #EnVivo | Baile Regional de la Octava desde Panajachel, Sololá.\n\n #Panajachel #Solola #Octava #BaileRegional #QaUlew #EnVivoQaUlew #Tradiciones #Guatemala",
+      "views": 8
+    },
+    {
+      "id": "01_3HCP_2qw",
+      "title": "🇬🇹🪇 #EnVivo | Baile Regional de la Octava desde Panajachel, Sololá.",
+      "published": "2026-10-12T12:16:24+00:00",
+      "description": "🇬🇹🪇 #EnVivo | Baile Regional de la Octava desde Panajachel, Sololá.\n\n #Panajachel #Solola #Octava #BaileRegional #QaUlew #EnVivoQaUlew #Tradiciones #Guatemala",
+      "views": 7
+    },
+    {
+      "id": "3ZxuZ6cSYoA",
+      "title": "🇬🇹🪇 #EnVivo | Baile Regional de la Octava desde Panajachel, Sololá.",
+      "published": "2026-10-12T11:44:41+00:00",
+      "description": "🇬🇹🪇 #EnVivo | Baile Regional de la Octava desde Panajachel, Sololá.\n\n #Panajachel #Solola #Octava #BaileRegional #QaUlew #EnVivoQaUlew #Tradiciones #Guatemala",
+      "views": 7
+    },
+    {
+      "id": "QoozKAm7oNc",
+      "title": "🇬🇹🪇 #EnVivo | Baile Regional de la Octava desde Panajachel, Sololá.",
+      "published": "2026-10-12T09:59:31+00:00",
+      "description": "🇬🇹🪇 #EnVivo | Baile Regional de la Octava desde Panajachel, Sololá.\n\n #Panajachel #Solola #Octava #BaileRegional #QaUlew #EnVivoQaUlew #Tradiciones #Guatemala",
+      "views": 11
+    },
+    {
+      "id": "sKm2_Sxapaw",
+      "title": "🇬🇹🪇 #EnVivo | Baile Regional de la Octava desde Panajachel, Sololá.",
+      "published": "2026-10-12T08:49:02+00:00",
+      "description": "🇬🇹🪇 #EnVivo | Baile Regional de la Octava desde Panajachel, Sololá.\n\n #Panajachel #Solola #Octava #BaileRegional #QaUlew #EnVivoQaUlew #Tradiciones #Guatemala",
+      "views": 0
+    },
+    {
+      "id": "EX7SL1wTWx4",
+      "title": "🇬🇹🪇 #EnVivo | Baile Regional de la Octava desde Panajachel, Sololá.",
+      "published": "2026-10-12T06:58:21+00:00",
+      "description": "🇬🇹🪇 #EnVivo | Baile Regional de la Octava desde Panajachel, Sololá.\n\n #Panajachel #Solola #Octava #BaileRegional #QaUlew #EnVivoQaUlew #Tradiciones #Guatemala",
+      "views": 11
+    },
+    {
+      "id": "5Af9co3nzIg",
+      "title": "🇬🇹🪇 #EnVivo | Baile Regional de la Octava desde Panajachel, Sololá.",
+      "published": "2026-10-12T04:43:44+00:00",
+      "description": "🇬🇹🪇 #EnVivo | Baile Regional de la Octava desde Panajachel, Sololá.\n\n #Panajachel #Solola #Octava #BaileRegional #QaUlew #EnVivoQaUlew #Tradiciones #Guatemala",
+      "views": 7
+    },
+    {
+      "id": "U6LAQiT4rCs",
+      "title": "📜🍦 #EnVivo Antología y Remembranza de Sololá presenta: Historia de los Productos de Soya.",
+      "published": "2026-10-11T16:07:48+00:00",
+      "description": "📜🍦 #EnVivo Antología y Remembranza de Sololá presenta: Historia de los Productos de Soya. \n\n#AntologiaYRemembranzaDeSolola #QaUlew #HistoriaDeSolola #Solola #Sololá #Sololateco #Guatemala #Chapin #HeladosDeSoya #RicosHeladosDeSoya #ProductosDeSoya #MemoriaHistorica #NostalgiaSololateca #Tradicione",
+      "views": 12
+    },
+    {
+      "id": "MfXDV_Vh1fE",
+      "title": "#EnVivo Baile Social desde Panajachel Ameniza Los Tokes. 🇬🇹",
+      "published": "2026-10-07T16:59:26+00:00",
+      "description": "#EnVivo Baile Social desde Panajachel Ameniza Los Tokes. 🇬🇹",
+      "views": 21
+    },
+    {
+      "id": "evVsLqhokvc",
+      "title": "#EnVivo Baile Femenino Impacto Ajachel. Ameniza Los Tokes. 🇬🇹",
+      "published": "2026-10-07T14:37:37+00:00",
+      "description": "#EnVivo Baile Femenino Impacto Ajachel. Ameniza Los Tokes. 🇬🇹",
+      "views": 4
+    },
+    {
+      "id": "jUrvOgHwtE0",
+      "title": "#EnVivo Baile Femenino Impacto Ajachel. Ameniza Los Tokes. 🇬🇹",
+      "published": "2026-10-07T12:14:35+00:00",
+      "description": "#EnVivo Baile Femenino Impacto Ajachel. Ameniza Los Tokes. 🇬🇹",
+      "views": 8
+    },
+    {
+      "id": "5VxBnF8n1X8",
+      "title": "#EnVivo Baile Femenino Impacto Ajachel. Ameniza Los Tokes. 🇬🇹",
+      "published": "2026-10-07T08:02:42+00:00",
+      "description": "#EnVivo Baile Femenino Impacto Ajachel. Ameniza Los Tokes. 🇬🇹",
+      "views": 2
+    },
+    {
+      "id": "5DiQRRMGHIw",
+      "title": "#EnVivo Baile Femenino Impacto Ajachel. Ameniza Los Tokes. 🇬🇹",
+      "published": "2026-10-07T06:19:17+00:00",
+      "description": "#EnVivo Baile Femenino Impacto Ajachel. Ameniza Los Tokes. 🇬🇹",
+      "views": 3
+    },
+    {
+      "id": "eLbVwH2KVwA",
+      "title": "#EnVivo Baile Femenino Impacto Ajachel. Ameniza Los Tokes. 🇬🇹",
+      "published": "2026-10-06T22:05:31+00:00",
+      "description": "#EnVivo Baile Femenino Impacto Ajachel. Ameniza Los Tokes. 🇬🇹",
+      "views": 3
+    }
+  ],
+  "popular": [
+    {
+      "id": "YdYW3bzGz_c",
+      "title": "#EnVivo \"Sololá, un paisaje lleno de secretos\" con el Lic. Erik Zelada - Capitulo 1. 🇬🇹📜",
+      "published": "2026-09-01T15:01:09+00:00",
+      "description": "#EnVivo \"Sololá, un paisaje lleno de secretos\" con el Lic. Erik Zelada  - Capitulo 1. 🇬🇹📜\n\n#QaUlewTV #SololáHistoriasQueAúnNoTeHanContado #Sololá #HistoriaDeSololá #MemoriaSololateca #CulturaSololateca #PatrimonioSololateco #NuestrasRaíces #Guatemala #SololáGuatemala",
+      "views": 92
+    },
+    {
+      "id": "KZ28Rj5uvcM",
+      "title": "#🇬🇹🎡EnVivo Desfile del Nivel Medio Urbano en su Feria Patronal de Sololá.",
+      "published": "2026-08-14T07:27:48+00:00",
+      "description": "#🇬🇹🎡EnVivo Desfile del Nivel Medio Urbano en su Feria Patronal de Sololá.\n\n#QaUlew #FeriaPatronalSolola #Solola #OrgulloSololateco #CulturaViva",
+      "views": 91
+    },
+    {
+      "id": "xr9VpI9aBMw",
+      "title": "#EnVivo Elección de la Reina Nacional de las Fiestas de Independencia. 🇬🇹👑",
+      "published": "2026-09-14T16:22:42+00:00",
+      "description": "#EnVivo Elección de la Reina Nacional de las Fiestas de Independencia. 🇬🇹👑 \n\n#Elecciondelareinanacional #Fiestasdeindependencia #Reinanacional2026 #Fraternidadquetzalteca #QaUlew #Quetzaltenango #Guatemala",
+      "views": 83
+    },
+    {
+      "id": "63KNf66p5sQ",
+      "title": "#EnVivo Desfile del Nivel Medio Rural en su Feria Patronal de Sololá. 🥁🇬🇹",
+      "published": "2026-08-13T08:17:30+00:00",
+      "description": "#EnVivo Desfile del Nivel Medio Rural en su Feria Patronal de Sololá. 🥁🇬🇹\n\n#QaUlew #FeriaPatronalSolola #Solola #OrgulloSololateco #CulturaViva",
+      "views": 72
+    },
+    {
+      "id": "BrvtKRPvE_A",
+      "title": "#EnVivo 🇬🇹🎺 Campeonato de Bandas Escolares desde la cabecera de Sololá. 🥁✨",
+      "published": "2026-09-12T20:34:45+00:00",
+      "description": "#EnVivo 🇬🇹🎺 Campeonato de Bandas Escolares desde la cabecera de Sololá. Disfrutemos juntos de una jornada llena de música, talento, disciplina y orgullo guatemalteco. 🥁✨\n\n#QaUlew #QaUlewTV #CampeonatoDeBandas #BandasEscolares #Sololá #FiestasPatrias #OrgulloGuatemalteco #Guatemala 🇬🇹",
+      "views": 68
+    },
     {
       "id": "_JbOROXYJS0",
       "title": "#EnVivo Descendimiento de la Consagrada Imagen de la Virgen de la Asunción, Patrona de Sololá. ✨",
-      "published": "2026-08-06T21:42:19+00:00",
-      "description": "#EnVivo Solemne Descendimiento de la Consagrada Imagen de la Virgen de la Asunción, Patrona de Sololá. ✨\n\n#QaUlewTV #ConectandoConNuestraCultura #Sololá #TradicionSololateca #OrgulloSolola"
+      "published": "2026-08-07T11:30:34+00:00",
+      "description": "#EnVivo Solemne Descendimiento de la Consagrada Imagen de la Virgen de la Asunción, Patrona de Sololá. ✨\n\n#QaUlewTV #ConectandoConNuestraCultura #Sololá #TradicionSololateca #OrgulloSolola",
+      "views": 58
     },
     {
-      "id": "99cE2iEj3hY",
-      "title": "#EnVivo | Ricardo Celada Podcast 🎙️",
-      "published": "2026-08-04T12:18:59+00:00",
-      "description": "#EnVivo | Ricardo Celada Podcast 🎙️\n\n#QaUlew #RicardoCeladaPodcast #Sololá #Guatemala #Soy502"
+      "id": "xAQ1GKHgWg0",
+      "title": "#EnVivo Antología y Remembranza de Sololá presenta: La Sastrería en Sololá. ✨📜",
+      "published": "2026-08-23T19:02:21+00:00",
+      "description": "#EnVivo Antología y Remembranza de Sololá presenta: La Sastrería en Sololá. ✨📜\n\n#QaUlew #AntologíaYRemembranza #LaSastreríaEnSololá #Sololá #CulturaSololateca #MemoriaSololateca #NuestrasRaíces #Guatemala",
+      "views": 56
+    },
+    {
+      "id": "tbUuDZOfyDI",
+      "title": "#EnVivo Música Sololateca 🇬🇹 | Marimba India Bonita de Sololá. 🌙🎶",
+      "published": "2026-08-21T14:48:35+00:00",
+      "description": "#EnVivo Música Sololateca: Una Noche Para Recordar Nuestros Sonidos 🇬🇹 | Marimba India Bonita de Sololá. 🌙🎶 \n\n#QaUlew #MusicaSololateca #MarimbaIndiaBonita #Sololá #Cultura #NuestrasRaices #ConectandoConNuestraCultura",
+      "views": 52
+    },
+    {
+      "id": "zfPenCJQO4w",
+      "title": "#EnVivo Fidel Funes y su Marimba Orquesta desde la Cabecera departamental de Sololá. 🇬🇹",
+      "published": "2026-08-09T15:15:15+00:00",
+      "description": "#EnVivo Fidel Funes y su Marimba Orquesta desde la Cabecera departamental de Sololá. 🇬🇹\n\n#QaUlew #FeriaPatronalSolola #Solola #OrgulloSololateco #CulturaViva",
+      "views": 50
+    },
+    {
+      "id": "6J9tvLHLvLY",
+      "title": "#EnVivo Entrega especial del libro “Sololá, un paisaje lleno de secretos”.📜🗺️",
+      "published": "2026-09-09T10:29:58+00:00",
+      "description": "#EnVivo Entrega especial del libro “Sololá, un paisaje lleno de secretos”, escrito por el Lic. Erik Zelada, quien hará entrega de esta obra a la Municipalidad de Sololá. 📜🗺️\n\n#QaUlewTV #SololáUnPaisajeLlenoDeSecretos #Sololá #HistoriaDeSololá #CulturaSololateca #MemoriaSololateca #NuestrasRaíces #",
+      "views": 42
+    },
+    {
+      "id": "NIJ132SpQS0",
+      "title": "#EnVivo Gran Gala de Elección y Coronación de la Reina de las Fiestas Franciscanas. 👑✨",
+      "published": "2026-09-20T18:55:06+00:00",
+      "description": "#EnVivo Gran Gala de Elección y Coronación de la Reina de las Fiestas Franciscanas. 👑✨\n\n#QaUlew #FiestasFranciscanas #ElecciónYCoronación #ReinaDeLasFiestas #Tradición #Cultura #Panajachel #Sololá #Guatemala",
+      "views": 42
+    },
+    {
+      "id": "YYm2BRWJ3rg",
+      "title": "#EnVivo Gran fiesta en Caserío Monte Mercedes, Sololá en honor a la Virgen de Natividad",
+      "published": "2026-09-09T05:04:01+00:00",
+      "description": "#EnVivo Gran fiesta en Caserío Monte Mercedes, Sololá en honor a la Virgen de Natividad.\n\n#QaUlewTV #Sololá #HistoriaDeSololá #CulturaSololateca #NuestrasRaíces #Guatemala",
+      "views": 42
+    },
+    {
+      "id": "-bZuqe8rDD8",
+      "title": "#EnVivo Segunda Parte del Recorriendo la feria de mi pueblo, Sololá 🇬🇹🎡",
+      "published": "2026-08-13T10:46:07+00:00",
+      "description": "#EnVivo Segunda Parte del Recorriendo la feria de mi pueblo, Sololá 🇬🇹🎡\n\n#QaUlew #FeriaPatronalSolola #Solola #OrgulloSololateco #CulturaViva",
+      "views": 38
+    },
+    {
+      "id": "KbTZw41yrFM",
+      "title": "#EnVivo Desfile Alegórico desde Panajachel, Sololá. 🇬🇹",
+      "published": "2026-10-02T07:03:15+00:00",
+      "description": "#EnVivo Desfile Alegórico desde Panajachel, Sololá. 🇬🇹",
+      "views": 32
+    },
+    {
+      "id": "J2CQxVN6uXQ",
+      "title": "#EnVivo Fidel Funes y su Marimba Orquesta desde la Cabecera departamental de Sololá. 🇬🇹",
+      "published": "2026-08-09T14:05:03+00:00",
+      "description": "#EnVivo Fidel Funes y su Marimba Orquesta desde la Cabecera departamental de Sololá. 🇬🇹\n\n#QaUlew #FeriaPatronalSolola #Solola #OrgulloSololateco #CulturaViva",
+      "views": 31
     }
   ]
 }

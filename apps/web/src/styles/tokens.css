@@ -164,6 +164,18 @@
   --qa-focus: #16150f;
   --qa-overlay: rgb(12 11 9 / 0.62);
 
+  /**
+   * "On air". The ONE colour on the page, and the exception the identity rule
+   * above allows for: a red dot is the broadcast convention for live, read
+   * without a word by every visitor, and nothing else on the site uses red, so
+   * it cannot be mistaken for decoration.
+   *
+   * Only ever a small dot beside the words "En vivo" — never text, never a
+   * surface. The words carry the meaning; the dot is how it is spotted from
+   * across the grid. That is also why it has no contrast floor of its own.
+   */
+  --qa-live: #d0281f;
+
   /* Scrollbar. The default chrome is the loudest unstyled element on a
    * monochrome page, and it does not follow the theme. */
   --qa-scroll-thumb: rgb(22 21 15 / 0.28);
@@ -259,6 +271,9 @@
 
   --qa-focus: #f4f2ed;
   --qa-overlay: rgb(6 6 5 / 0.74);
+
+  /* Brighter on the dark page, where the light-mode red reads as maroon. */
+  --qa-live: #f0443a;
 
   --qa-scroll-thumb: rgb(244 242 237 / 0.22);
   --qa-scroll-thumb-hover: rgb(244 242 237 / 0.42);

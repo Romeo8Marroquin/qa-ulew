@@ -5,19 +5,23 @@ import Hero from '~/components/Hero.astro';
 import Reveal from '~/components/Reveal.astro';
 import Section from '~/components/Section.astro';
 import SocialLinks from '~/components/SocialLinks.astro';
-import VideoEmbed from '~/components/VideoEmbed.astro';
-import { FEATURED_VIDEOS, activeSocialLinks, youtubeFeedEnabled } from '~/config/site';
+import VideoList from '~/components/VideoList.astro';
+import VideoTemplates from '~/components/VideoTemplates.astro';
+import { FEATURED_VIDEOS, activeSocialLinks } from '~/config/site';
 import { DEFAULT_LOCALE, isLocale } from '~/i18n/config';
 import { useTranslations } from '~/i18n/utils';
 import BaseLayout from '~/layouts/BaseLayout.astro';
-import { fetchLatestVideos, mergeVideos } from '~/lib/youtube';
+import { fetchVideoCatalog, mergeVideos } from '~/lib/youtube';
 
 const locale = isLocale(Astro.currentLocale) ? Astro.currentLocale : DEFAULT_LOCALE;
 const t = useTranslations(locale);
 
-// Build-time only. Returns [] if the feed is disabled or unreachable, so a
-// YouTube outage can never fail the deploy — see lib/youtube.ts.
-const videos = mergeVideos(FEATURED_VIDEOS, await fetchLatestVideos());
+// Build-time only. Falls back to the committed snapshot, and to empty lists if
+// the feed is disabled, so a YouTube outage can never fail the deploy — see
+// lib/youtube.ts.
+const catalog = await fetchVideoCatalog();
+const recent = mergeVideos(FEATURED_VIDEOS, catalog.recent);
+const { popular } = catalog;
 
 const hasSocial = activeSocialLinks().length > 0;
 
@@ -28,76 +32,44 @@ const identity = (['name', 'tower', 'clock', 'date'] as const).map((key) => ({
 }));
 ---
 
-<BaseLayout fullBleed>
+<BaseLayout fullBleed popular={popular.length > 0}>
   <Hero />
 
   <AdSlot placement="header" height={[100, 90]} />
 
   {/* --- Videos --- */}
   <Section id="videos" title={t('videos.title')} subtitle={t('videos.subtitle')} muted>
-    {
-      /*
-      The grid and the empty message are both always present, rather than one
-      or the other. `scripts/video-feed.ts` refills this grid after load, and
-      the case it most needs to handle is a build that shipped no videos at all
-      because YouTube was throttling the deploy — which is precisely when the
-      old markup rendered the message *instead of* a grid, leaving the script
-      nothing to fill.
-    */
-    }
-    <div class="grid gap-x-8 gap-y-12 md:grid-cols-2" data-video-grid>
-      {
-        videos.map((video, index) => (
-          <Reveal delay={(index % 2) * 80}>
-            <VideoEmbed
-              provider={video.provider}
-              id={video.id}
-              title={video.title}
-              poster={video.poster}
-              eager={index === 0}
-              embeddable={video.embeddable}
-            />
-          </Reveal>
-        ))
-      }
-    </div>
-
-    <div data-video-empty hidden={videos.length > 0}>
-      <Reveal>
-        <p
-          class="rounded-lg border border-dashed border-border px-6 py-20 text-center text-fg-subtle"
-        >
-          {t('videos.empty')}
-        </p>
-      </Reveal>
-    </div>
-
-    {
-      /*
-        Prototypes for the two tile shapes, rendered by the same component the
-        real tiles use so they cannot drift from it. `__ID__` and `__TITLE__`
-        are stamped out per video in `scripts/video-feed.ts`.
-
-        Inert until cloned: a browser neither loads the poster nor runs
-        anything inside a <template>, and `document.querySelectorAll` does not
-        reach into one, so the reveal and facade scripts skip these.
-      */
-      youtubeFeedEnabled() && (
-        <>
-          <template data-video-template="embeddable">
-            <Reveal>
-              <VideoEmbed provider="youtube" id="__ID__" title="__TITLE__" />
-            </Reveal>
-          </template>
-          <template data-video-template="link">
-            <Reveal>
-              <VideoEmbed provider="youtube" id="__ID__" title="__TITLE__" embeddable={false} />
-            </Reveal>
-          </template>
-        </>
-      )
-    }
+    <VideoList name="recent" videos={recent} meta={['date']} eager />
   </Section>
+
+  {
+    /*
+      Most viewed. Its own section, so it is its own landmark and its own entry
+      in a screen reader's heading list — "lo más visto" is not a part of "lo
+      más reciente", and nesting it under that heading would say it was.
+
+      It continues the muted band of the section above rather than starting a
+      new surface: the two lists read as one stretch of content, divided by the
+      single hairline the section above already draws. Not `muted`, because
+      that adds a top border too, and two hairlines stacked read as one heavy
+      rule.
+
+      Rendered only when there is something in it. The snapshot means that is
+      every real build; a page without one simply has one list.
+    */
+    popular.length > 0 && (
+      <Section
+        id="popular"
+        title={t('videos.popular.title')}
+        subtitle={t('videos.popular.subtitle')}
+        class="border-b border-border bg-bg-subtle"
+      >
+        <VideoList name="popular" videos={popular} meta={['views', 'date']} />
+      </Section>
+    )
+  }
+
+  <VideoTemplates />
 
   <script>
     import '~/scripts/video-feed';

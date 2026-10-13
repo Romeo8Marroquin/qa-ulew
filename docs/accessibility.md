@@ -35,7 +35,7 @@ list is only useful if the entries are distinct.
 | `navigation`    | desktop `<nav>`                  | `nav.primaryNav` |
 | `navigation`    | mobile panel `<nav>`             | `nav.mobileNav`  |
 | `main`          | `<main>` in `BaseLayout.astro`   | implicit         |
-| `region` ×3     | each `<Section>`                 | its own `<h2>`   |
+| `region` ×4     | each `<Section>`                 | its own `<h2>`   |
 | `complementary` | `<AdSlot>`, when ads are enabled | `ads.label`      |
 | `contentinfo`   | `<footer>`                       | implicit         |
 
@@ -146,6 +146,49 @@ theme is currently active without listening for the change.
 not state-dependent. The fix, if it is ever wanted, is to have the toggle's
 existing script write `aria-label` and `title` from a pair of new keys —
 "Cambiar a tema oscuro" / "Cambiar a tema claro" — after it resolves the theme.
+
+### "Ver más"
+
+Each video list ships every tile visible and the button `hidden`;
+`scripts/video-list.ts` collapses the list and shows the button. So nothing is
+hidden unless the script that un-hides it is running — without JavaScript the
+visitor gets the whole list and no control that does nothing.
+
+- **It is a `<button>` with `aria-controls`** pointing at the list's `<ul>`,
+  and its label says what it will do: "Ver 12 videos más", pluralised by
+  `Intl.PluralRules` ("Ver 1 video más").
+- **Focus moves to the first new video** after a press. Otherwise focus stays on
+  a button that is now _below_ twelve new tiles, and the next Tab leaves the
+  list without passing through them.
+- **Focus is moved with `preventScroll`**, and the page then scrolls once,
+  smoothly, just far enough to show the first new tile whole — below the fixed
+  header, so the focused control is never obscured (WCAG 2.4.11). Instant under
+  reduced motion.
+- **A polite `role="status"`** says how far through the list that is
+  ("Mostrando 15 de 15 videos"). It is empty until the first press, so nothing
+  is announced on load.
+- **It hides itself when nothing is left.** A focused button that disappears
+  would drop focus to `<body>`; it never is focused at that point, because the
+  press that empties the list has already moved focus to the new tiles.
+
+Each list is a real `<ul role="list">`, so a screen reader announces "lista, 15
+elementos" — how a visitor learns how much is there before going through it.
+
+### Video details and the live badge
+
+- **The view count** is shown with an eye icon, which is `aria-hidden`, so it is
+  preceded by a hidden "Visualizaciones:" (`a11y.videos.views`). A bare "92"
+  read aloud means nothing.
+- **The date** is a `<time datetime>`. Relative text ("hace 3 horas") is what
+  is read; the absolute timestamp is in `title` for pointer users.
+- **The "En vivo" badge** on the thumbnail is `aria-hidden` and
+  `pointer-events: none`: the caption line says "Transmitiendo ahora" as text,
+  which is where a screen reader meets it, and the badge sits over the play
+  button so it must not swallow the click. It is solid white with black text in
+  both themes — nothing translucent, so nothing for Reduce Transparency to fix.
+- **The red dot** is the one colour on the site and never carries meaning on its
+  own; the words beside it do. In forced colours it may vanish, and the text
+  remains.
 
 ### External links
 

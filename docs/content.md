@@ -51,24 +51,88 @@ Facebook exposes no predictable thumbnail URL, so a poster image must be placed
 in `public/` and referenced. Without one the embed still works but shows a plain
 gradient.
 
-## Keeping the grid current
+## Keeping the lists current
+
+The home page shows **two lists**, each its own section and landmark:
+
+| Section           | List      | Source                                     | Details under each title |
+| ----------------- | --------- | ------------------------------------------ | ------------------------ |
+| _Lo más reciente_ | `recent`  | the uploads feed, live stream pinned first | when ("hace 3 horas")    |
+| _Lo más visto_    | `popular` | YouTube's own popular playlists, by views  | views and when           |
+
+Both come from the keyless Atom feed. No API key exists anywhere in the
+pipeline, and none is needed for any of this.
 
 ### How many videos appear
 
-`FEATURED_VIDEOS` (pinned, curated, currently empty) first, then the newest
-`YOUTUBE.limit` — **6** — from the feed, with duplicates removed by
-`mergeVideos`. So the grid is "the last 6 uploads" today, and pinned entries add
-to that rather than displace it.
+Each list holds up to `YOUTUBE.limit` — **15**, which is the Atom feed's own
+ceiling — and shows `YOUTUBE.initial` (**3**) of them. "Ver N videos más"
+reveals `YOUTUBE.step` (**12**) more, which reaches all fifteen in one press;
+"Ver todo en YouTube" beside it is the way to the rest of the channel. The
+button only appears when there is something left to show.
 
-One wrinkle worth knowing: the limit is applied when the feed is **parsed**, and
-videos judged `gone` are dropped **after** that. There is no backfill, so a
-build where one of the six has been deleted renders five tiles, not six. That is
-deliberate — reaching further down the feed to top up would mean probing videos
-nobody asked for on every build — but it is why the grid can be short.
+Three is one row on a desktop (three columns); on a tablet (two columns) the
+first tile spans both. In general, whatever would be left over on the last row
+is promoted to the top — one tile full width, or two at half width — so a list
+of thirteen or fourteen never ends with a stranded tile. See
+[design.md](./design.md#video-lists).
 
-To show more, raise `YOUTUBE.limit` in `config/site.ts`. Each extra video costs
-one probe per build and per cache miss, and the grid is a 2-column layout, so
-even numbers look right.
+The HTML carries **every** tile visible; `scripts/video-list.ts` collapses the
+list on load. Without JavaScript a visitor simply gets all fifteen. Hidden
+tiles cost nothing: their posters are `loading="lazy"` and `display: none`, so
+they are never downloaded unless someone presses the button.
+
+`FEATURED_VIDEOS` (pinned, curated, currently empty) still goes first in the
+recent list, with duplicates removed by `mergeVideos`.
+
+One wrinkle worth knowing: the limit is applied when a feed is **parsed**, and
+videos judged `gone` are dropped **after** that. There is no backfill, so a list
+can be one or two short of fifteen. That is deliberate — reaching further down a
+feed to top up would mean probing videos nobody asked for.
+
+### Most viewed, without an API key
+
+Every channel has auto-generated playlists named by swapping the `UC` of its id
+for a prefix, and two of them are its most viewed uploads, already sorted:
+
+| Playlist | Holds                | For this channel                              |
+| -------- | -------------------- | --------------------------------------------- |
+| `UULP`   | popular videos       | **404** — it uploads almost only live streams |
+| `UUPV`   | popular live streams | everything                                    |
+
+Both are read through the same Atom feed, merged by `mergePopular` (a video in
+both keeps its higher count) and cut to fifteen. A playlist that does not exist
+404s exactly like a throttled one, so each is optional; only when **neither**
+answers does the build fall back to the snapshot. The shorts equivalent
+(`UUPS`) is left out on purpose — a vertical short cropped into a 16:9 tile
+looks broken.
+
+The view counts are the feed's `media:statistics`, so they are as current as
+the last refresh — minutes old on a page with JavaScript.
+
+### Live streams
+
+**This was the bug where the page showed the previous video while the channel
+was on air.** The Atom feed has no notion of "live", and it orders by
+`published` — which for a stream is when the broadcast was _created_, not when
+it went on air. Measured on a channel that was live: its stream sat sixth in its
+own feed.
+
+So the Pages Function also reads `youtube.com/channel/<id>/live`
+(`fetchLive` in `lib/youtube-feed.ts`). When the channel is on air, that page's
+player bootstrap carries `"videoDetails":{"videoId":…,"isLive":true}`; the stream
+is then moved to the top of the recent list (or added, if the feed has not
+caught up), flagged, and drawn with a red "En vivo" badge and "Transmitiendo
+ahora" in place of its date. A stream that is only scheduled (`isUpcoming`) or
+has ended is ignored.
+
+The page is ~1.3 MB with the answer ~800 KB in, so it is **streamed and
+abandoned** as soon as it can answer — after a few kilobytes when the channel is
+not on air, because the canonical link at the top already says so.
+
+Live state comes **only** from the Function, never from the build. A badge baked
+into static HTML would still say "en vivo" days later to anyone whose refresh did
+not land.
 
 ### Two fetches, not one
 
@@ -78,7 +142,7 @@ deleted video stay on the page for two days".
 
 | When            | Where                     | What it produces                     |
 | --------------- | ------------------------- | ------------------------------------ |
-| `astro build`   | `src/lib/youtube.ts`      | the grid baked into `index.html`     |
+| `astro build`   | `src/lib/youtube.ts`      | the lists baked into `index.html`    |
 | Every page load | `functions/api/videos.ts` | JSON the page reconciles itself with |
 
 **Build time** is what a visitor sees first, what a visitor with JavaScript off
@@ -86,10 +150,17 @@ sees, and what Google indexes. It is also frozen at the moment of the last
 deploy, which was the whole bug: a podcast deleted on YouTube kept its tile, and
 a live stream that started afterwards never appeared.
 
-**Load time** fixes that. `src/scripts/video-feed.ts` asks `/api/videos`,
-compares the answer to what is already rendered, and rebuilds the grid only if
-they differ. In the normal case — a current deploy — it compares, finds no
-change, and touches nothing.
+**Load time** fixes that. `src/scripts/video-feed.ts` asks `/api/videos` and
+reconciles each list **tile by tile**: an unchanged video keeps its element, its
+details line is patched only where a value moved (a view count that grew), only
+a new or reshaped video is cloned from a template, and a tile is moved only if
+the order changed. In the normal case — a current deploy — that is a few text
+updates and nothing else. Build-time dates ("12 oct 2026", right for a visitor
+without JavaScript) become relative ones ("hace 3 horas") on load.
+
+The Function caches its answer for three minutes, and keeps the last good one
+for a day so a throttled refresh serves minutes-old data rather than a 503; see
+[deployment.md §13](./deployment.md#13-the-one-pages-function).
 
 It cannot go via the browser directly: `youtube.com/feeds/videos.xml` sends no
 `Access-Control-Allow-Origin` header, so the request is blocked before it is
@@ -98,8 +169,9 @@ made. That is the only reason a server-side route exists at all; see
 
 ### The snapshot is a third source
 
-`src/data/youtube-feed.json` is a committed fallback for when the live feed is
-unavailable **at build time**. YouTube rate-limits the Atom feed and signals it
+`src/data/youtube-feed.json` is a committed fallback for when the live feeds
+are unavailable **at build time**. It holds both lists — `videos` (recent) and
+`popular` — with their view counts. YouTube rate-limits the Atom feed and signals it
 with **404**, indistinguishable from a deleted channel — and Cloudflare builds
 from shared IPs, so they are throttled more often than a laptop is. Without the
 snapshot, one unlucky build deploys an empty videos section.
@@ -110,7 +182,10 @@ Refresh it when the channel publishes something you want in the fallback:
 pnpm --filter @qa-ulew/web content:youtube
 ```
 
-It fails loudly, unlike the build-time fetch, because the point is to notice.
+It fails loudly, unlike the build-time fetch, because the point is to notice. A
+list it cannot refresh keeps its previous contents rather than emptying. The
+script imports the site's own parser and channel id (Node strips TypeScript
+types natively), so it cannot disagree with the build about what a feed says.
 
 ### Videos that cannot be embedded
 
