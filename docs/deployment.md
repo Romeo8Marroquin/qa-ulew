@@ -72,7 +72,7 @@ deployment.
 | Variable       | Production   | Preview   | Required                             |
 | -------------- | ------------ | --------- | ------------------------------------ |
 | `PNPM_VERSION` | `11.20.0`    | `11.20.0` | **Yes — the build fails without it** |
-| `NODE_VERSION` | `24.19.0`    | `24.19.0` | No — `.nvmrc` already covers it      |
+| `NODE_VERSION` | `24.22.1`    | `24.22.1` | No — `.nvmrc` already covers it      |
 | `PUBLIC_ENV`   | `production` | `preview` | Only if branch previews are used     |
 
 `PNPM_VERSION` and `NODE_VERSION` are **not** environment settings despite living
@@ -146,7 +146,7 @@ deployment**; nothing in the repository needs to change.
 
 ### `NODE_VERSION` — optional
 
-`.nvmrc` (`24.19.0`) is committed at the repo root and Pages honours it, so Node
+`.nvmrc` (`24.22.1`) is committed at the repo root and Pages honours it, so Node
 is already pinned without this variable. Setting it is belt-and-braces only.
 Leaving it unset is arguably better: bumping `.nvmrc` then updates local, CI and
 Cloudflare together, with nothing to remember in the dashboard.

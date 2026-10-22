@@ -21,3 +21,11 @@ allowBuilds:
 # reviewed and allowed through that gate.
 minimumReleaseAgeExclude:
   - "@iconify-json/simple-icons@1.2.93"
+
+# Supply-chain quarantine: never resolve a version published less than 3 days ago.
+minimumReleaseAge: 4320
+
+# miniflare pins undici 7.29.1 exactly; 7.30.1 fixes the 2026-10-15 undici advisories
+# (GHSA-2m5v-pch6-74hx, GHSA-4w7w-5xrc-9h26, ...). Drop once wrangler ships a newer miniflare.
+overrides:
+  "undici@7.29.1": "7.30.1"

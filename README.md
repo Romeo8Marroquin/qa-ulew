@@ -21,20 +21,20 @@ services. Production domain: **[qa-ulew.tv](https://qa-ulew.tv)**.
 | Icons     | astro-icon (Simple Icons + Lucide), inlined SVG  |
 | i18n      | Astro native — Spanish today, more on demand     |
 | Hosting   | Cloudflare Pages                                 |
-| Toolchain | Node 24.19.0 LTS · pnpm 11.20.0 · TypeScript 6   |
+| Toolchain | Node 24.22.1 LTS · pnpm 11.20.0 · TypeScript 6   |
 
 ---
 
 ## Requirements
 
-- **Node 24.19.0** (latest LTS) — `nvm use` reads `.nvmrc`
+- **Node 24.22.1** (latest LTS) — `nvm use` reads `.nvmrc`
 - **pnpm 11.20.0** — `corepack enable pnpm` picks it up from `packageManager`
 
 `engine-strict` is on: the wrong Node or pnpm fails the install immediately
 rather than producing a subtly different build.
 
 ```bash
-nvm install 24.19.0 && nvm use 24.19.0
+nvm install 24.22.1 && nvm use 24.22.1
 corepack enable pnpm
 pnpm install
 ```
